@@ -144,125 +144,126 @@ export function ApplicationOrderPage({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-slate-200 bg-white p-6">
+      <div className="border-b border-slate-200 bg-white px-6 pt-4 pb-3">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="mb-3 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"
+          className="mb-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"
         >
-          <ChevronLeft className="h-3.5 w-3.5" /> Back
+          <ChevronLeft className="size-3.5" /> Back
         </button>
-        <div className="flex items-center gap-4">
-          <div className="size-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
-            {icon ? (
-              <img src={icon} alt={displayName} className="h-full w-full" />
-            ) : null}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="size-11 shrink-0 overflow-hidden rounded-md bg-slate-100">
+              {icon ? (
+                <img src={icon} alt={displayName} className="h-full w-full" />
+              ) : null}
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-slate-500">
+                {displayName}
+              </p>
+              <h1 className="text-lg font-semibold text-slate-900">
+                {editMode ? `Edit ${editMode.name}` : `Deploy new ${ad.spec?.application.singular ?? "instance"}`}
+              </h1>
+              {description && (
+                <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+              )}
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              {editMode ? `Edit ${editMode.name}` : `Deploy ${displayName}`}
-            </h1>
-            {description && (
-              <p className="mt-0.5 text-sm text-slate-600">{description}</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-6 py-2">
-            <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
               <button
                 type="button"
                 onClick={() => (mode === "yaml" ? enterForm() : undefined)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                   mode === "form"
-                    ? "bg-blue-50 text-blue-700"
+                    ? "bg-slate-900 text-white"
                     : "text-slate-600 hover:bg-slate-50",
                 )}
               >
-                <FormInput className="h-3.5 w-3.5" /> Form
+                <FormInput className="size-3.5" /> Form
               </button>
               <button
                 type="button"
                 onClick={() => (mode === "form" ? enterYaml() : undefined)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                   mode === "yaml"
-                    ? "bg-blue-50 text-blue-700"
+                    ? "bg-slate-900 text-white"
                     : "text-slate-600 hover:bg-slate-50",
                 )}
               >
-                <FileCode className="h-3.5 w-3.5" /> YAML
+                <FileCode className="size-3.5" /> YAML
               </button>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(-1)}
-                disabled={create.isPending || update.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={submit}
-                disabled={create.isPending || update.isPending || !tenantNamespace}
-              >
-                {(create.isPending || update.isPending) && <Spinner className="text-white" />}
-                {editMode ? "Save" : "Deploy"}
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(-1)}
+              disabled={create.isPending || update.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={submit}
+              disabled={create.isPending || update.isPending || !tenantNamespace}
+            >
+              {(create.isPending || update.isPending) && <Spinner className="text-white" />}
+              {editMode ? "Save" : "Deploy"}
+            </Button>
           </div>
-
-          {mode === "form" ? (
-            <div className="flex-1 overflow-auto p-6">
-              <div className="mx-auto max-w-3xl space-y-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={!!editMode}
-                    placeholder={ad.spec?.application.singular ?? "name"}
-                    className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
-                  />
-                  {tenantNamespace && (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Namespace: <code>{tenantNamespace}</code>
-                    </p>
-                  )}
-                </div>
-                {ad.spec?.application.openAPISchema && (
-                  <SchemaForm
-                    openAPISchema={ad.spec.application.openAPISchema}
-                    keysOrder={ad.spec?.dashboard?.keysOrder}
-                    formData={spec}
-                    onChange={setSpec}
-                  />
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-1 flex-col">
-              {yamlError && (
-                <div className="border-b border-red-200 bg-red-50 px-6 py-2 text-xs text-red-700">
-                  {yamlError}
-                </div>
-              )}
-              <div className="flex-1">
-                <YamlEditor value={yamlText} onChange={setYamlText} />
-              </div>
-            </div>
-          )}
         </div>
       </div>
+
+      {mode === "form" ? (
+        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+          <div className="mx-auto max-w-3xl space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-5">
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={!!editMode}
+                placeholder={ad.spec?.application.singular ?? "name"}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-500"
+              />
+              {tenantNamespace && (
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Namespace: <code className="text-slate-700">{tenantNamespace}</code>
+                </p>
+              )}
+            </div>
+            {ad.spec?.application.openAPISchema && (
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <SchemaForm
+                  openAPISchema={ad.spec.application.openAPISchema}
+                  keysOrder={ad.spec?.dashboard?.keysOrder}
+                  formData={spec}
+                  onChange={setSpec}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col bg-white">
+          {yamlError && (
+            <div className="border-b border-red-200 bg-red-50 px-6 py-2 text-xs text-red-700">
+              {yamlError}
+            </div>
+          )}
+          <div className="flex-1">
+            <YamlEditor value={yamlText} onChange={setYamlText} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

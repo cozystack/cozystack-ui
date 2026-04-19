@@ -20,36 +20,36 @@ export function MarketplaceList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 p-8 text-slate-500">
+      <div className="flex items-center gap-2 p-6 text-sm text-slate-500">
         <Spinner /> Loading marketplace…
       </div>
     )
   }
   if (error) {
     return (
-      <div className="p-8 text-red-600">
+      <div className="p-6 text-sm text-red-600">
         Failed to load ApplicationDefinitions: {(error as Error).message}
       </div>
     )
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Marketplace</h1>
-        <p className="mt-1 text-sm text-slate-600">
+    <div className="p-6">
+      <div className="mb-5">
+        <h1 className="text-xl font-semibold text-slate-900">Marketplace</h1>
+        <p className="mt-0.5 text-sm text-slate-500">
           Pick an application to deploy into the selected tenant.
         </p>
       </div>
       {visible.length === 0 && (
-        <div className="rounded-lg border border-dashed border-slate-300 p-12 text-center text-slate-500">
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-500">
           No applications in this category.
         </div>
       )}
-      <div className="space-y-8">
+      <div className="space-y-6">
         {visible.map(({ category, items }) => (
           <section key={category}>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
               {category}
             </h2>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">

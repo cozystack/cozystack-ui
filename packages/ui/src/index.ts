@@ -12,6 +12,7 @@ export { Button, buttonVariants, type ButtonProps } from "./components/ui/button
 export { StatusBadge } from "./components/StatusBadge.tsx"
 export { Spinner } from "./components/Spinner.tsx"
 export { Logo } from "./components/Logo.tsx"
+export { Section } from "./components/Section.tsx"
 
 // Utilities
 export { cn } from "./lib/utils.ts"

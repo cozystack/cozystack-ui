@@ -1,5 +1,5 @@
 import { useK8sList, type K8sResource } from "@cozystack/k8s-client"
-import { Spinner } from "@cozystack/ui"
+import { Section, Spinner } from "@cozystack/ui"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
 import { appInstanceLabel } from "../../lib/labels.ts"
 
@@ -27,32 +27,33 @@ export function IngressesTab({
 
   return (
     <div className="p-6">
-      <div className="rounded-lg border border-slate-200 bg-white">
-        <header className="border-b border-slate-200 px-4 py-2 text-sm font-medium text-slate-700">
-          Ingresses
-        </header>
+      <Section title="Ingresses" bodyClassName="p-0">
         {isLoading ? (
-          <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500">
+          <div className="flex items-center gap-2 px-5 py-4 text-xs text-slate-500">
             <Spinner /> Loading…
           </div>
         ) : items.length === 0 ? (
-          <div className="px-4 py-6 text-sm text-slate-500">No ingresses.</div>
+          <div className="px-5 py-6 text-sm text-slate-500">No ingresses.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {items.map((ing) => (
-              <li key={ing.metadata.name} className="px-4 py-3">
+              <li key={ing.metadata.name} className="px-5 py-3">
                 <p className="font-mono text-xs text-slate-800">
                   {ing.metadata.name}
                 </p>
-                <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                <ul className="mt-1.5 space-y-1 text-xs text-slate-600">
                   {ing.spec?.rules?.map((rule, idx) => (
                     <li key={idx} className="flex flex-wrap gap-x-2">
-                      {rule.host && <a
-                        href={`https://${rule.host}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-blue-700 hover:underline"
-                      >{rule.host}</a>}
+                      {rule.host && (
+                        <a
+                          href={`https://${rule.host}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-700 hover:underline"
+                        >
+                          {rule.host}
+                        </a>
+                      )}
                       {rule.http?.paths?.map((p, i) => (
                         <span key={i} className="text-slate-500">
                           {p.path ?? "/"} → {p.backend?.service?.name}
@@ -65,7 +66,7 @@ export function IngressesTab({
             ))}
           </ul>
         )}
-      </div>
+      </Section>
     </div>
   )
 }

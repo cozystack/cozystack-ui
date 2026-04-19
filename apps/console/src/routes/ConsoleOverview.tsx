@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { Link } from "react-router"
-import { Spinner } from "@cozystack/ui"
+import { Plus } from "lucide-react"
+import { Spinner, Button } from "@cozystack/ui"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
 import {
   useApplicationDefinitions,
@@ -16,9 +17,11 @@ function TenantApps({ ad, namespace }: { ad: ApplicationDefinition; namespace: s
   if (items.length === 0) return null
   return (
     <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">
-        {ad.spec?.application.kind}{" "}
-        <span className="text-slate-400">({items.length})</span>
+      <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+        {ad.spec?.application.kind}
+        <span className="rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-600">
+          {items.length}
+        </span>
       </h2>
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
         {items.map((inst: ApplicationInstance) => (
@@ -50,35 +53,34 @@ export function ConsoleOverview() {
 
   if (!tenantNamespace) {
     return (
-      <div className="p-8 text-slate-600">
+      <div className="p-6 text-sm text-slate-500">
         Select a tenant to view its deployed applications.
       </div>
     )
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-6 flex items-end justify-between">
+    <div className="p-6">
+      <div className="mb-5 flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Deployed applications</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Tenant <code>{selectedTenant}</code> ·{" "}
+          <h1 className="text-xl font-semibold text-slate-900">Deployed applications</h1>
+          <p className="mt-0.5 text-sm text-slate-500">
+            Tenant <code className="text-slate-700">{selectedTenant}</code> ·{" "}
             <code className="text-slate-400">{tenantNamespace}</code>
           </p>
         </div>
-        <Link
-          to="/marketplace"
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          + Deploy application
+        <Link to="/marketplace">
+          <Button variant="primary" size="sm">
+            <Plus className="size-3.5" /> Deploy application
+          </Button>
         </Link>
       </div>
       {isLoading ? (
-        <div className="flex items-center gap-2 text-slate-500">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
           <Spinner /> Loading…
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {currentTenant && <TenantModulesPanel tenant={currentTenant} />}
           <div className="space-y-6">
             {ads

@@ -1,20 +1,13 @@
 import { useK8sList, type K8sResource } from "@cozystack/k8s-client"
-import { Spinner, StatusBadge } from "@cozystack/ui"
+import { Section, Spinner, StatusBadge } from "@cozystack/ui"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
 import { appInstanceLabel } from "../../lib/labels.ts"
 import { formatAge } from "../../lib/status.ts"
-
-interface WorkloadsTabProps {
-  ad: ApplicationDefinition
-  instance: ApplicationInstance
-}
 
 interface WorkloadStatus {
   replicas?: number
   readyReplicas?: number
   availableReplicas?: number
-  currentReplicas?: number
-  updatedReplicas?: number
 }
 
 interface PodStatus {
@@ -37,19 +30,17 @@ function WorkloadList({
   const items = data?.items ?? []
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500">
-        <Spinner /> Loading {title}…
-      </div>
+      <Section title={title} bodyClassName="p-0">
+        <div className="flex items-center gap-2 px-5 py-4 text-xs text-slate-500">
+          <Spinner /> Loading…
+        </div>
+      </Section>
     )
   }
   if (items.length === 0) return null
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white">
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-2 text-sm font-medium text-slate-700">
-        {title}
-        <span className="text-xs text-slate-400">{items.length}</span>
-      </header>
+    <Section title={title} bodyClassName="p-0">
       <ul className="divide-y divide-slate-100">
         {items.map((item) => {
           const status = item.status
@@ -58,12 +49,12 @@ function WorkloadList({
           return (
             <li
               key={item.metadata.name}
-              className="flex items-center justify-between px-4 py-2 text-sm"
+              className="flex items-center justify-between px-5 py-2.5 text-sm"
             >
               <span className="font-mono text-xs text-slate-800">
                 {item.metadata.name}
               </span>
-              <span className="flex items-center gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-3 text-xs text-slate-500 tabular-nums">
                 <span>
                   {ready}/{desired}
                 </span>
@@ -73,7 +64,7 @@ function WorkloadList({
           )
         })}
       </ul>
-    </section>
+    </Section>
   )
 }
 
@@ -85,19 +76,17 @@ function PodsList({ namespace, label }: { namespace: string; label: string }) {
   const items = data?.items ?? []
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500">
-        <Spinner /> Loading pods…
-      </div>
+      <Section title="Pods" bodyClassName="p-0">
+        <div className="flex items-center gap-2 px-5 py-4 text-xs text-slate-500">
+          <Spinner /> Loading…
+        </div>
+      </Section>
     )
   }
   if (items.length === 0) return null
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white">
-      <header className="flex items-center justify-between border-b border-slate-200 px-4 py-2 text-sm font-medium text-slate-700">
-        Pods
-        <span className="text-xs text-slate-400">{items.length}</span>
-      </header>
+    <Section title="Pods" bodyClassName="p-0">
       <ul className="divide-y divide-slate-100">
         {items.map((pod) => {
           const ready =
@@ -107,12 +96,12 @@ function PodsList({ namespace, label }: { namespace: string; label: string }) {
           return (
             <li
               key={pod.metadata.name}
-              className="flex items-center justify-between px-4 py-2 text-sm"
+              className="flex items-center justify-between px-5 py-2.5 text-sm"
             >
               <span className="font-mono text-xs text-slate-800">
                 {pod.metadata.name}
               </span>
-              <span className="flex items-center gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-3 text-xs text-slate-500 tabular-nums">
                 <StatusBadge tone={phase === "Running" ? "ok" : "warn"}>
                   {phase}
                 </StatusBadge>
@@ -125,11 +114,17 @@ function PodsList({ namespace, label }: { namespace: string; label: string }) {
           )
         })}
       </ul>
-    </section>
+    </Section>
   )
 }
 
-export function WorkloadsTab({ ad, instance }: WorkloadsTabProps) {
+export function WorkloadsTab({
+  ad,
+  instance,
+}: {
+  ad: ApplicationDefinition
+  instance: ApplicationInstance
+}) {
   const ns = instance.metadata.namespace ?? ""
   const label = appInstanceLabel(ad, instance)
 

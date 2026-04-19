@@ -19,8 +19,8 @@ export function Header({ tenantSelector, userMenu, extras }: HeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
       <div className="flex items-center gap-6">
-        <Link to="/" className="flex items-center gap-2">
-          <Logo className="h-7 w-auto" />
+        <Link to="/" className="flex items-center">
+          <Logo className="h-6 w-auto" />
         </Link>
         <nav className="flex items-center gap-1">
           {tabs.map((t) => {
