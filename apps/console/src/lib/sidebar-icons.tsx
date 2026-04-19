@@ -3,10 +3,10 @@ import {
   HardDrive,
   Monitor,
   Network,
-  PaintBucket,
   Users,
   type LucideIcon,
 } from "lucide-react"
+import { BucketIcon } from "./icons/BucketIcon.tsx"
 
 /**
  * TODO(bff): move both of these mappings to the server. Ideally each
@@ -44,8 +44,8 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
  * Lucide fallbacks for kinds that don't have a canonical brand logo in
  * Simple Icons. These use the same pack as cozyportal-ui.
  */
-const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon> = {
-  Bucket: PaintBucket,
+const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon | ComponentType<{ className?: string }>> = {
+  Bucket: BucketIcon,
   VMInstance: Monitor,
   VMDisk: HardDrive,
   VirtualPrivateCloud: Network,
@@ -56,7 +56,9 @@ export function simpleIconSlug(kind: string): string | undefined {
   return KIND_TO_SIMPLE_ICON[kind]
 }
 
-export function lucideIcon(kind: string): LucideIcon | undefined {
+export function lucideIcon(
+  kind: string,
+): LucideIcon | ComponentType<{ className?: string }> | undefined {
   return KIND_TO_LUCIDE_ICON[kind]
 }
 
