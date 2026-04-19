@@ -1,13 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "declaration": true,
-    "noEmit": false,
-    "emitDeclarationOnly": true
+    "noEmit": true,
+    "paths": {
+      "@cozystack/k8s-client": ["../k8s-client/src"]
+    }
   },
-  "include": ["src/**/*"],
-  "references": [{ "path": "../k8s-client" }]
+  "include": ["src/**/*"]
 }

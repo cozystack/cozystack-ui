@@ -1,9 +1,4 @@
 {
   "files": [],
-  "references": [
-    { "path": "./packages/types" },
-    { "path": "./packages/k8s-client" },
-    { "path": "./packages/ui" },
-    { "path": "./apps/console" }
-  ]
+  "include": []
 }
