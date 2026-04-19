@@ -59,9 +59,25 @@ export function useApplicationInstances(
 }
 
 /**
+ * Cozystack-native order: IaaS → PaaS → NaaS → Administration, with anything
+ * else appended alphabetically. Kept in one place so the sidebar, the
+ * marketplace and any future UI stay consistent.
+ */
+export const CATEGORY_ORDER = ["IaaS", "PaaS", "NaaS", "Administration"]
+
+export function compareCategories(a: string, b: string): number {
+  const ai = CATEGORY_ORDER.indexOf(a)
+  const bi = CATEGORY_ORDER.indexOf(b)
+  if (ai !== -1 && bi !== -1) return ai - bi
+  if (ai !== -1) return -1
+  if (bi !== -1) return 1
+  return a.localeCompare(b)
+}
+
+/**
  * Group application definitions by `dashboard.category`. Undefined category is
- * bucketed under "Other". Results are stable-sorted by display name within a
- * category and categories are returned in alphabetical order.
+ * bucketed under "Other". Items inside a category are sorted alphabetically by
+ * name, categories follow the Cozystack canonical order.
  */
 export function groupByCategory(
   list: K8sList<ApplicationDefinition> | undefined,
@@ -83,7 +99,7 @@ export function groupByCategory(
       category,
       items: items.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name)),
     }))
-    .sort((a, b) => a.category.localeCompare(b.category))
+    .sort((a, b) => compareCategories(a.category, b.category))
 }
 
 export function iconDataUrl(ad: ApplicationDefinition): string | undefined {
