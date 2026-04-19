@@ -55,12 +55,12 @@ export function MarketplaceHome() {
           <Spinner /> Loading…
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="flex flex-wrap gap-4">
           {CATEGORIES.map(({ key, title, blurb, icon: Icon }) => {
             const count = countFor(key)
             const disabled = count === 0
             const card = (
-              <div className="flex h-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5">
+              <div className="flex h-full w-80 flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5">
                 <div className="flex size-10 items-center justify-center rounded-lg bg-blue-50 text-blue-500">
                   <Icon className="size-5" />
                 </div>
