@@ -1,17 +1,20 @@
 import type { ComponentType } from "react"
+import {
+  HardDrive,
+  Network,
+  Package,
+  Server,
+  type LucideIcon,
+} from "lucide-react"
 
 /**
- * TODO(bff): move this mapping to the server. Ideally each ApplicationDefinition
- * carries a `spec.dashboard.iconSlug` (or similar) pointing at a Simple Icons
- * slug, so the frontend doesn't need a hardcoded table. Until then we keep the
- * mapping here and fall through to the generic Lucide fallback.
+ * TODO(bff): move both of these mappings to the server. Ideally each
+ * ApplicationDefinition carries a `spec.dashboard.iconSlug` (Simple Icons
+ * slug) or `spec.dashboard.iconLucide` (a Lucide name) so the frontend
+ * doesn't need a hardcoded table. Until then we keep the mapping here and
+ * fall through to the generic Lucide fallback.
  */
 const KIND_TO_SIMPLE_ICON: Record<string, string> = {
-  // IaaS
-  Bucket: "amazons3",
-  Kubernetes: "kubernetes",
-  // VMInstance / VMDisk / VirtualPrivateCloud: no brand logos on Simple Icons
-
   // PaaS
   ClickHouse: "clickhouse",
   Harbor: "harbor",
@@ -32,11 +35,27 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
   // Administration
   Etcd: "etcd",
   Ingress: "nginx",
+  Kubernetes: "kubernetes",
   Monitoring: "prometheus",
+}
+
+/**
+ * Lucide fallbacks for kinds that don't have a canonical brand logo in
+ * Simple Icons. These use the same pack as cozyportal-ui.
+ */
+const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon> = {
+  Bucket: Package,
+  VMInstance: Server,
+  VMDisk: HardDrive,
+  VirtualPrivateCloud: Network,
 }
 
 export function simpleIconSlug(kind: string): string | undefined {
   return KIND_TO_SIMPLE_ICON[kind]
+}
+
+export function lucideIcon(kind: string): LucideIcon | undefined {
+  return KIND_TO_LUCIDE_ICON[kind]
 }
 
 /**
