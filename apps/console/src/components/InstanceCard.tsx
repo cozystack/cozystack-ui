@@ -21,22 +21,22 @@ export function InstanceCard({ ad, instance }: InstanceCardProps) {
   return (
     <Link
       to={`/console/${plural}/${instance.metadata.name}`}
-      className="group flex w-80 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition-shadow hover:shadow-sm"
+      className="group flex w-80 flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-shadow hover:shadow-sm"
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="size-9 shrink-0 overflow-hidden rounded-md bg-slate-100">
+      <div className="flex items-start gap-3">
+        <div className="size-12 shrink-0 overflow-hidden rounded-md bg-slate-100">
           {icon ? (
             <img src={icon} alt={displayKind} className="h-full w-full" />
           ) : null}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-slate-900 group-hover:text-blue-700">
             {instance.metadata.name}
           </p>
           <p className="truncate text-xs text-slate-500">{displayKind}</p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3 text-xs text-slate-500">
+      <div className="flex items-center justify-between text-xs text-slate-500">
         {ready ? (
           <StatusBadge tone={ready.status === "True" ? "ok" : "warn"}>
             {ready.status === "True" ? "Ready" : (ready.reason ?? "NotReady")}
@@ -44,7 +44,9 @@ export function InstanceCard({ ad, instance }: InstanceCardProps) {
         ) : (
           <StatusBadge tone="muted">Unknown</StatusBadge>
         )}
-        <span className="tabular-nums">{formatAge(instance.metadata.creationTimestamp)}</span>
+        <span className="tabular-nums">
+          {formatAge(instance.metadata.creationTimestamp)}
+        </span>
       </div>
     </Link>
   )
