@@ -47,14 +47,11 @@ export function useMarketplaceSidebarSections(): SidebarSection[] {
     return [
       {
         title: "Marketplace",
-        items: [
-          { label: "All applications", to: "/marketplace", end: true, icon: LayoutGrid },
-          ...ordered.map((category) => ({
-            label: category,
-            to: `/marketplace/c/${encodeURIComponent(category)}`,
-            icon: CATEGORY_ICON[category] ?? LayoutGrid,
-          })),
-        ],
+        items: ordered.map((category) => ({
+          label: category,
+          to: `/marketplace/c/${encodeURIComponent(category)}`,
+          icon: CATEGORY_ICON[category] ?? LayoutGrid,
+        })),
       },
     ]
   }, [grouped])
