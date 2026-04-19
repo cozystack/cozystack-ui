@@ -4,6 +4,7 @@ import {
   Network,
   Package,
   Server,
+  Users,
   type LucideIcon,
 } from "lucide-react"
 
@@ -48,6 +49,7 @@ const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon> = {
   VMInstance: Server,
   VMDisk: HardDrive,
   VirtualPrivateCloud: Network,
+  Tenant: Users,
 }
 
 export function simpleIconSlug(kind: string): string | undefined {
