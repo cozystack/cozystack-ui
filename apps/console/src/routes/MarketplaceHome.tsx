@@ -1,7 +1,14 @@
 import { useMemo } from "react"
 import { Link } from "react-router"
-import { ArrowRight, Cloud, Database, Network, type LucideIcon } from "lucide-react"
-import { Spinner } from "@cozystack/ui"
+import {
+  ArrowRight,
+  Cloud,
+  Database,
+  LayoutGrid,
+  Network,
+  type LucideIcon,
+} from "lucide-react"
+import { Button, Spinner } from "@cozystack/ui"
 import { groupByCategory, useApplicationDefinitions } from "../lib/app-definitions.ts"
 
 interface CategoryMeta {
@@ -45,9 +52,16 @@ export function MarketplaceHome() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">Marketplace</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Choose a product to deploy.</p>
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Marketplace</h1>
+          <p className="mt-0.5 text-sm text-slate-500">Choose a product to deploy.</p>
+        </div>
+        <Link to="/marketplace/all">
+          <Button variant="outline" size="sm">
+            <LayoutGrid className="size-3.5" /> Show all apps
+          </Button>
+        </Link>
       </div>
 
       {isLoading ? (
