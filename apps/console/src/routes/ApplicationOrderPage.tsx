@@ -20,16 +20,22 @@ type Mode = "form" | "yaml"
 interface ApplicationOrderPageProps {
   /** When provided, the page pre-fills the form with this spec and PUTs on save. */
   editMode?: { name: string; initialSpec: unknown }
+  /** Override the AD name that would otherwise come from the URL. */
+  appNameOverride?: string
 }
 
-export function ApplicationOrderPage({ editMode }: ApplicationOrderPageProps) {
-  const { appName } = useParams<{ appName: string }>()
+export function ApplicationOrderPage({
+  editMode,
+  appNameOverride,
+}: ApplicationOrderPageProps) {
+  const routeParams = useParams<{ appName: string }>()
+  const appName = appNameOverride ?? routeParams.appName
   const { data: ad, isLoading, error } = useApplicationDefinition(appName)
   const { tenantNamespace } = useTenantContext()
-  const [params] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
-  const [name, setName] = useState(editMode?.name ?? params.get("name") ?? "")
+  const [name, setName] = useState(editMode?.name ?? searchParams.get("name") ?? "")
   const [spec, setSpec] = useState<unknown>(editMode?.initialSpec ?? {})
   const [mode, setMode] = useState<Mode>("form")
   const [yamlText, setYamlText] = useState("")

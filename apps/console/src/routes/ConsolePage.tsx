@@ -1,8 +1,16 @@
+import { Route, Routes } from "react-router"
+import { ConsoleOverview } from "./ConsoleOverview.tsx"
+import { TenantsPage } from "./TenantsPage.tsx"
+import { ApplicationDetailPage } from "./detail/ApplicationDetailPage.tsx"
+import { ApplicationEditRoute } from "./detail/ApplicationEditRoute.tsx"
+
 export function ConsolePage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-slate-900">Console</h1>
-      <p className="mt-2 text-slate-600">Coming in the next step.</p>
-    </div>
+    <Routes>
+      <Route index element={<ConsoleOverview />} />
+      <Route path="tenants" element={<TenantsPage />} />
+      <Route path=":plural/:name/edit" element={<ApplicationEditRoute />} />
+      <Route path=":plural/:name/*" element={<ApplicationDetailPage />} />
+    </Routes>
   )
 }
