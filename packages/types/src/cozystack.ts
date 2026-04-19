@@ -30,8 +30,12 @@ export interface ApplicationDefinitionSpec {
     icon?: string
     /** Ordered list of key paths used to render the form top-to-bottom. */
     keysOrder?: string[][]
-    /** When true, only one instance per tenant is allowed. */
-    tenantSingleton?: boolean
+    /**
+     * Tenant module: singleton add-on managed via `Tenant.spec.<name>=true`.
+     * UI must hide these from the regular marketplace and category nav, and
+     * surface them under Administration → Modules.
+     */
+    module?: boolean
   }
   release?: {
     prefix?: string

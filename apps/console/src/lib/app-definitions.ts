@@ -65,10 +65,14 @@ export function useApplicationInstances(
  */
 export function groupByCategory(
   list: K8sList<ApplicationDefinition> | undefined,
+  opts: { includeModules?: boolean; includeTenant?: boolean } = {},
 ): { category: string; items: ApplicationDefinition[] }[] {
   if (!list) return []
+  const { includeModules = false, includeTenant = false } = opts
   const map = new Map<string, ApplicationDefinition[]>()
   for (const ad of list.items) {
+    if (!includeModules && isTenantModule(ad)) continue
+    if (!includeTenant && ad.spec?.application.kind === "Tenant") continue
     const category = ad.spec?.dashboard?.category ?? "Other"
     const bucket = map.get(category) ?? []
     bucket.push(ad)
@@ -99,4 +103,9 @@ export function appDisplayName(ad: ApplicationDefinition): string {
  */
 export function releasePrefix(ad: ApplicationDefinition): string {
   return ad.spec?.release?.prefix ?? `${ad.spec?.application.singular ?? ad.metadata.name}-`
+}
+
+/** Tenant modules are singleton add-ons toggled via Tenant.spec flags. */
+export function isTenantModule(ad: ApplicationDefinition): boolean {
+  return ad.spec?.dashboard?.module === true
 }

@@ -12,6 +12,9 @@ export function MarketplaceList() {
   const { category: rawCategory } = useParams<{ category?: string }>()
   const category = rawCategory ? decodeURIComponent(rawCategory) : null
 
+  // Modules are configured per-tenant under Administration → Modules, not
+  // installed from the marketplace. Likewise Tenant itself lives in its own
+  // Administration → Tenants page.
   const categories = useMemo(() => groupByCategory(data), [data])
   const visible = useMemo(
     () => (category ? categories.filter((c) => c.category === category) : categories),

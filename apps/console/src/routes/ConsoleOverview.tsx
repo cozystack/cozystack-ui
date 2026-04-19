@@ -4,12 +4,12 @@ import { Plus } from "lucide-react"
 import { Spinner, Button } from "@cozystack/ui"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
 import {
+  isTenantModule,
   useApplicationDefinitions,
   useApplicationInstances,
 } from "../lib/app-definitions.ts"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { InstanceCard } from "../components/InstanceCard.tsx"
-import { TenantModulesPanel } from "../components/TenantModulesPanel.tsx"
 
 function TenantApps({ ad, namespace }: { ad: ApplicationDefinition; namespace: string }) {
   const { data } = useApplicationInstances(ad, namespace)
@@ -38,16 +38,18 @@ function TenantApps({ ad, namespace }: { ad: ApplicationDefinition; namespace: s
 
 export function ConsoleOverview() {
   const { data, isLoading } = useApplicationDefinitions()
-  const { tenantNamespace, selectedTenant, tenants } = useTenantContext()
-  const currentTenant = tenants.find((t) => t.metadata.name === selectedTenant)
+  const { tenantNamespace, selectedTenant } = useTenantContext()
 
   const ads = useMemo(
     () =>
-      (data?.items ?? []).slice().sort((a, b) =>
-        (a.spec?.application.kind ?? "").localeCompare(
-          b.spec?.application.kind ?? "",
+      (data?.items ?? [])
+        .filter((ad) => !isTenantModule(ad) && ad.spec?.application.kind !== "Tenant")
+        .slice()
+        .sort((a, b) =>
+          (a.spec?.application.kind ?? "").localeCompare(
+            b.spec?.application.kind ?? "",
+          ),
         ),
-      ),
     [data],
   )
 
@@ -81,19 +83,9 @@ export function ConsoleOverview() {
         </div>
       ) : (
         <div className="space-y-6">
-          {currentTenant && <TenantModulesPanel tenant={currentTenant} />}
-          <div className="space-y-6">
-            {ads
-              .filter(
-                (ad) =>
-                  !["monitoring", "ingress", "etcd", "seaweedfs"].includes(
-                    ad.metadata.name,
-                  ),
-              )
-              .map((ad) => (
-                <TenantApps key={ad.metadata.name} ad={ad} namespace={tenantNamespace} />
-              ))}
-          </div>
+          {ads.map((ad) => (
+            <TenantApps key={ad.metadata.name} ad={ad} namespace={tenantNamespace} />
+          ))}
         </div>
       )}
     </div>
