@@ -7,7 +7,7 @@ interface LogoProps {
   heightRem?: number
 }
 
-export function Logo({ className, title = "Cozystack", heightRem = 1.5 }: LogoProps) {
+export function Logo({ className, title = "Cozystack", heightRem = 2 }: LogoProps) {
   return (
     <img
       src={logoUrl}

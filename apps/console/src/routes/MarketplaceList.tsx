@@ -52,7 +52,7 @@ export function MarketplaceList() {
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
               {category}
             </h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {items.map((ad) => (
                 <AppCard key={ad.metadata.name} ad={ad} to={`/marketplace/${ad.metadata.name}`} />
               ))}
