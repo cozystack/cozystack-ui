@@ -21,12 +21,10 @@ export function BucketIcon({ className }: IconProps) {
       className={className}
       aria-hidden
     >
-      {/* Wire handle */}
-      <path d="M7 7c0-3 10-3 10 0" />
-      {/* Top rim */}
-      <path d="M3 7h18" />
-      {/* Body (trapezoid, wider at top, tapering to the bottom) */}
-      <path d="M4 7 6 21h12L20 7" />
+      {/* Wire handle, anchored at the top corners of the body */}
+      <path d="M5 7c0-4 14-4 14 0" />
+      {/* Open trapezoidal body — no closing line at the top */}
+      <path d="M5 7 7 21h10L19 7" />
     </svg>
   )
 }
