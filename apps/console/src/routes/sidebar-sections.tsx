@@ -1,8 +1,12 @@
 import { useMemo } from "react"
 import {
+  Cloud,
+  Database,
   Globe,
   Info,
+  LayoutGrid,
   Layers,
+  Network,
   ToyBrick,
   Users,
   type LucideIcon,
@@ -17,24 +21,61 @@ import {
 } from "../lib/sidebar-icons.tsx"
 import type { ComponentType } from "react"
 
-const CATEGORY_ORDER = ["IaaS", "PaaS", "NaaS"]
+const MARKETPLACE_CATEGORIES = ["IaaS", "PaaS", "NaaS"]
+const CATEGORY_ICON: Record<string, LucideIcon> = {
+  IaaS: Cloud,
+  PaaS: Database,
+  NaaS: Network,
+}
 
 /**
- * Sidebar lists every non-module, non-Tenant ApplicationDefinition in the
- * cluster as a separate entry, grouped by IaaS / PaaS / NaaS. Tenant
- * modules are surfaced under Administration → Modules; Tenant itself is
- * under Administration → Tenants.
+ * Marketplace sidebar: a flat list of filters — "All applications" followed
+ * by the three categories. Category links rely on pathname-based matching
+ * (`/marketplace/c/<category>`) so NavLink correctly highlights the active
+ * entry; see MarketplaceList for the counterpart.
  */
-export function useSidebarSections(): SidebarSection[] {
+export function useMarketplaceSidebarSections(): SidebarSection[] {
+  const { data } = useApplicationDefinitions()
+  const grouped = useMemo(() => groupByCategory(data), [data])
+
+  return useMemo<SidebarSection[]>(() => {
+    const available = grouped
+      .map((g) => g.category)
+      .filter((c) => MARKETPLACE_CATEGORIES.includes(c))
+    const ordered = MARKETPLACE_CATEGORIES.filter((c) => available.includes(c))
+
+    return [
+      {
+        title: "Marketplace",
+        items: [
+          { label: "All applications", to: "/marketplace", end: true, icon: LayoutGrid },
+          ...ordered.map((category) => ({
+            label: category,
+            to: `/marketplace/c/${encodeURIComponent(category)}`,
+            icon: CATEGORY_ICON[category] ?? LayoutGrid,
+          })),
+        ],
+      },
+    ]
+  }, [grouped])
+}
+
+/**
+ * Console sidebar: every non-module, non-Tenant ApplicationDefinition in the
+ * cluster as a separate entry grouped by IaaS / PaaS / NaaS, plus a fixed
+ * Administration section (Info, Modules, External IPs, Tenants).
+ */
+export function useConsoleSidebarSections(): SidebarSection[] {
   const { data } = useApplicationDefinitions()
   const grouped = useMemo(() => groupByCategory(data), [data])
 
   return useMemo<SidebarSection[]>(() => {
     const sorted = [...grouped]
-      .filter(({ category }) => CATEGORY_ORDER.includes(category))
+      .filter(({ category }) => MARKETPLACE_CATEGORIES.includes(category))
       .sort(
         (a, b) =>
-          CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category),
+          MARKETPLACE_CATEGORIES.indexOf(a.category) -
+          MARKETPLACE_CATEGORIES.indexOf(b.category),
       )
 
     const categorySections: SidebarSection[] = sorted.map(({ category, items }) => ({

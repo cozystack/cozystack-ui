@@ -38,28 +38,26 @@ export function MarketplaceList() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-2 text-2xl font-bold text-slate-900">Marketplace</h1>
-      <p className="mb-6 text-sm text-slate-500">Choose a product to deploy</p>
-
+      <div className="mb-5">
+        <h1 className="text-xl font-semibold text-slate-900">Marketplace</h1>
+        <p className="mt-0.5 text-sm text-slate-500">
+          Pick an application to deploy into the selected tenant.
+        </p>
+      </div>
       {visible.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-500">
+        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-500">
           No applications in this category.
         </div>
       )}
-
-      <div className="space-y-8">
+      <div className="space-y-6">
         {visible.map(({ category, items }) => (
           <section key={category}>
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
               {category}
             </h2>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {items.map((ad) => (
-                <AppCard
-                  key={ad.metadata.name}
-                  ad={ad}
-                  to={`/marketplace/${ad.metadata.name}`}
-                />
+                <AppCard key={ad.metadata.name} ad={ad} to={`/marketplace/${ad.metadata.name}`} />
               ))}
             </div>
           </section>
