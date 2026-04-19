@@ -1,41 +1,110 @@
 import { Check, X } from "lucide-react"
+import { Link } from "react-router"
 import { Section, Spinner, StatusBadge } from "@cozystack/ui"
+import {
+  useK8sList,
+  type K8sResource,
+} from "@cozystack/k8s-client"
 import type { ApplicationDefinition } from "@cozystack/types"
 import {
   iconDataUrl,
   isTenantModule,
   useApplicationDefinitions,
-  useApplicationInstances,
 } from "../lib/app-definitions.ts"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { humanizeKind } from "../lib/humanize.ts"
-import { Link } from "react-router"
+
+const TENANT_MODULES_REF = {
+  apiGroup: "core.cozystack.io",
+  apiVersion: "v1alpha1",
+  plural: "tenantmodules",
+}
+
+const APP_KIND_LABEL = "apps.cozystack.io/application.kind"
 
 /**
- * One card per tenant module. Enabled-state is inferred from the actual
- * presence of an instance of that kind in the tenant namespace — that way
- * always-on modules like Info (no Tenant.spec flag) still light up, and
- * flag-driven ones (etcd/ingress/monitoring/seaweedfs) agree with what the
- * chart has actually rendered.
- *
- * TODO(bff): when the server grows a dedicated "tenant modules" endpoint it
- * should return the enabled/disabled state directly instead of us having to
- * fan out a list() per module.
+ * Administration → Modules: every ApplicationDefinition marked as a tenant
+ * module. Enabled-state comes from the `TenantModule` CRD
+ * (`core.cozystack.io/v1alpha1`), which is the canonical registry of modules
+ * actually installed into a tenant. Matching uses the
+ * `apps.cozystack.io/application.kind` label on the TenantModule so we don't
+ * rely on name conventions.
  */
+export function ModulesPage() {
+  const { data: defs, isLoading: defsLoading } = useApplicationDefinitions()
+  const { tenantNamespace } = useTenantContext()
+
+  const { data: tmList, isLoading: tmLoading } = useK8sList<K8sResource>(
+    { ...TENANT_MODULES_REF, namespace: tenantNamespace ?? undefined },
+    { enabled: !!tenantNamespace },
+  )
+
+  const modules = (defs?.items ?? [])
+    .filter(isTenantModule)
+    .sort((a, b) =>
+      (a.spec?.application.kind ?? "").localeCompare(
+        b.spec?.application.kind ?? "",
+      ),
+    )
+
+  const isLoading = defsLoading || tmLoading
+
+  const tmByKind = new Map<string, K8sResource>()
+  for (const tm of tmList?.items ?? []) {
+    const kind = tm.metadata.labels?.[APP_KIND_LABEL]
+    if (kind) tmByKind.set(kind, tm)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 p-6 text-sm text-slate-500">
+        <Spinner /> Loading modules…
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6">
+      <div className="mb-5">
+        <h1 className="text-xl font-semibold text-slate-900">Modules</h1>
+        <p className="mt-0.5 text-sm text-slate-500">
+          Tenant-scoped add-ons, driven by the <code className="text-slate-700">TenantModule</code>
+          {" "}registry in the selected tenant's namespace.
+        </p>
+      </div>
+
+      {modules.length === 0 ? (
+        <Section>
+          <p className="py-6 text-center text-sm text-slate-500">No modules.</p>
+        </Section>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {modules.map((ad) => (
+            <ModuleCard
+              key={ad.metadata.name}
+              ad={ad}
+              installed={tmByKind.get(ad.spec?.application.kind ?? "")}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ModuleCard({
   ad,
-  namespace,
+  installed,
 }: {
   ad: ApplicationDefinition
-  namespace: string | null
+  installed: K8sResource | undefined
 }) {
-  const { data, isLoading } = useApplicationInstances(ad, namespace ?? undefined)
-  const instance = data?.items?.[0]
-  const enabled = !!instance
   const kind = ad.spec?.application.kind ?? ad.metadata.name
   const plural = ad.spec?.application.plural ?? ad.metadata.name
-  const target = enabled && instance
-    ? `/console/${plural}/${instance.metadata.name}`
+  const singletonName = installed?.metadata.name ?? kind.toLowerCase()
+  const enabled = !!installed
+  const target = enabled
+    ? `/console/${plural}/${singletonName}`
     : `/marketplace/${ad.metadata.name}`
   const icon = iconDataUrl(ad)
 
@@ -55,59 +124,10 @@ function ModuleCard({
           {ad.spec?.dashboard?.description ?? kind}
         </p>
       </div>
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <StatusBadge tone={enabled ? "ok" : "muted"}>
-          {enabled ? <Check className="size-3" /> : <X className="size-3" />}
-          {enabled ? "Enabled" : "Disabled"}
-        </StatusBadge>
-      )}
+      <StatusBadge tone={enabled ? "ok" : "muted"}>
+        {enabled ? <Check className="size-3" /> : <X className="size-3" />}
+        {enabled ? "Enabled" : "Disabled"}
+      </StatusBadge>
     </Link>
-  )
-}
-
-export function ModulesPage() {
-  const { data, isLoading } = useApplicationDefinitions()
-  const { tenantNamespace } = useTenantContext()
-
-  const modules = (data?.items ?? [])
-    .filter(isTenantModule)
-    .sort((a, b) =>
-      (a.spec?.application.kind ?? "").localeCompare(
-        b.spec?.application.kind ?? "",
-      ),
-    )
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 p-6 text-sm text-slate-500">
-        <Spinner /> Loading modules…
-      </div>
-    )
-  }
-
-  return (
-    <div className="p-6">
-      <div className="mb-5">
-        <h1 className="text-xl font-semibold text-slate-900">Modules</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Tenant-scoped add-ons. A module is enabled as soon as the tenant
-          chart has deployed its singleton into this tenant's namespace.
-        </p>
-      </div>
-
-      {modules.length === 0 ? (
-        <Section>
-          <p className="py-6 text-center text-sm text-slate-500">No modules.</p>
-        </Section>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {modules.map((ad) => (
-            <ModuleCard key={ad.metadata.name} ad={ad} namespace={tenantNamespace} />
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
