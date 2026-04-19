@@ -1,8 +1,12 @@
+import { Route, Routes } from "react-router"
+import { MarketplaceList } from "./MarketplaceList.tsx"
+import { ApplicationOrderPage } from "./ApplicationOrderPage.tsx"
+
 export function MarketplacePage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-slate-900">Marketplace</h1>
-      <p className="mt-2 text-slate-600">Coming in the next step.</p>
-    </div>
+    <Routes>
+      <Route index element={<MarketplaceList />} />
+      <Route path=":appName" element={<ApplicationOrderPage />} />
+    </Routes>
   )
 }

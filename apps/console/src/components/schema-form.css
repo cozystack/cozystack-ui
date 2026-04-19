@@ -1,0 +1,49 @@
+/*
+ * Minimal styling for @rjsf/core's default theme. RJSF ships no styles; this
+ * file adds the bare minimum so the form is readable on Tailwind pages.
+ */
+@reference "@cozystack/ui/styles";
+
+.rjsf-container .field {
+  @apply mb-3;
+}
+.rjsf-container .field > label,
+.rjsf-container .control-label {
+  @apply mb-1 block text-sm font-medium text-slate-700;
+}
+.rjsf-container .field-description {
+  @apply mt-0.5 text-xs text-slate-500;
+}
+.rjsf-container .required {
+  @apply ml-0.5 text-red-500;
+}
+.rjsf-container input[type="text"],
+.rjsf-container input[type="number"],
+.rjsf-container input[type="email"],
+.rjsf-container textarea,
+.rjsf-container select {
+  @apply w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500;
+}
+.rjsf-container input[type="checkbox"] {
+  @apply mr-2 size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500;
+}
+.rjsf-container fieldset {
+  @apply mb-4 space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3;
+}
+.rjsf-container fieldset > legend {
+  @apply px-1 text-sm font-semibold text-slate-700;
+}
+.rjsf-container fieldset fieldset {
+  @apply bg-white;
+}
+.rjsf-container .btn-add,
+.rjsf-container .object-property-expand button,
+.rjsf-container .array-item-add button,
+.rjsf-container .array-item-remove button,
+.rjsf-container .array-item-move-up button,
+.rjsf-container .array-item-move-down button {
+  @apply rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50;
+}
+.rjsf-container .text-danger {
+  @apply text-xs text-red-600;
+}
