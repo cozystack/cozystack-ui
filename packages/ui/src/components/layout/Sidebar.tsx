@@ -23,14 +23,16 @@ interface SidebarProps {
 export function Sidebar({ sections }: SidebarProps) {
   const location = useLocation()
   const search = location.search
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(sections.map((s) => [s.title, true])),
-  )
+  // Track only explicit overrides. Missing keys default to "open" so sections
+  // added after mount (e.g. once ApplicationDefinitions finish loading) are
+  // expanded automatically without waiting for a toggle.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   if (sections.length === 0) return null
 
+  const isOpen = (title: string) => !collapsed[title]
   const toggleSection = (title: string) => {
-    setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }))
+    setCollapsed((prev) => ({ ...prev, [title]: !prev[title] }))
   }
 
   return (
@@ -47,11 +49,11 @@ export function Sidebar({ sections }: SidebarProps) {
               <ChevronUp
                 className={cn(
                   "h-3.5 w-3.5 transition-transform",
-                  !openSections[section.title] && "rotate-180",
+                  !isOpen(section.title) && "rotate-180",
                 )}
               />
             </button>
-            {openSections[section.title] && (
+            {isOpen(section.title) && (
               <div className="mt-0.5 space-y-0.5 px-2">
                 {section.items.map((item) => (
                   <NavLink
