@@ -6,7 +6,6 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react"
-import { BucketIcon } from "./icons/BucketIcon.tsx"
 
 /**
  * TODO(bff): move both of these mappings to the server. Ideally each
@@ -16,6 +15,9 @@ import { BucketIcon } from "./icons/BucketIcon.tsx"
  * fall through to the generic Lucide fallback.
  */
 const KIND_TO_SIMPLE_ICON: Record<string, string> = {
+  // IaaS
+  Bucket: "amazons3",
+
   // PaaS
   ClickHouse: "clickhouse",
   Harbor: "harbor",
@@ -45,7 +47,6 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
  * Simple Icons. These use the same pack as cozyportal-ui.
  */
 const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon | ComponentType<{ className?: string }>> = {
-  Bucket: BucketIcon,
   VMInstance: Monitor,
   VMDisk: HardDrive,
   VirtualPrivateCloud: Network,
