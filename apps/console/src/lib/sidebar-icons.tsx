@@ -40,22 +40,29 @@ export function simpleIconSlug(kind: string): string | undefined {
 }
 
 /**
- * Build a React component that renders the Simple Icons CDN image for a given
- * slug, matching the `{ className?: string }` contract used by Lucide.
+ * Build a monochromatic icon component that renders the Simple Icons SVG as a
+ * CSS `mask-image`. The span takes its colour from `currentColor`, so active
+ * sidebar items pick up the blue accent and inactive ones stay slate-400 —
+ * exactly like the Lucide icons next to them.
  */
 export function simpleIconComponent(slug: string): ComponentType<{ className?: string }> {
-  const src = `https://cdn.simpleicons.org/${slug}`
+  const url = `url(https://cdn.simpleicons.org/${slug}/000000)`
   return function SimpleIcon({ className }) {
     return (
-      <img
-        src={src}
-        alt=""
+      <span
         aria-hidden
         className={className}
-        loading="lazy"
-        onError={(e) => {
-          // Gracefully hide if the slug doesn't exist.
-          ;(e.currentTarget as HTMLImageElement).style.display = "none"
+        style={{
+          display: "inline-block",
+          backgroundColor: "currentColor",
+          maskImage: url,
+          WebkitMaskImage: url,
+          maskSize: "contain",
+          WebkitMaskSize: "contain",
+          maskRepeat: "no-repeat",
+          WebkitMaskRepeat: "no-repeat",
+          maskPosition: "center",
+          WebkitMaskPosition: "center",
         }}
       />
     )
