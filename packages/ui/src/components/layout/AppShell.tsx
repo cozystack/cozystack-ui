@@ -1,31 +1,38 @@
 import type { ReactNode } from "react"
 import { Outlet } from "react-router"
-import { Header } from "./Header.tsx"
+import { Header, type HeaderTab } from "./Header.tsx"
 import { Sidebar, type SidebarSection } from "./Sidebar.tsx"
 
 interface AppShellProps {
   sections: SidebarSection[]
-  tenantSelector?: ReactNode
-  userMenu?: ReactNode
-  headerExtras?: ReactNode
+  /** Small breadcrumb-like bar below the header (tenant selector, etc.). */
   subtitle?: ReactNode
+  tabs?: HeaderTab[]
+  username?: string
+  userSettingsUrl?: string
+  signOutUrl?: string
+  notificationBell?: ReactNode
   children?: ReactNode
 }
 
 export function AppShell({
   sections,
-  tenantSelector,
-  userMenu,
-  headerExtras,
   subtitle,
+  tabs,
+  username,
+  userSettingsUrl,
+  signOutUrl,
+  notificationBell,
   children,
 }: AppShellProps) {
   return (
     <div className="flex h-screen flex-col bg-slate-50">
       <Header
-        tenantSelector={tenantSelector}
-        userMenu={userMenu}
-        extras={headerExtras}
+        tabs={tabs}
+        username={username}
+        userSettingsUrl={userSettingsUrl}
+        signOutUrl={signOutUrl}
+        notificationBell={notificationBell}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar sections={sections} />
