@@ -8,6 +8,7 @@ import {
 } from "../lib/app-definitions.ts"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { InstanceCard } from "../components/InstanceCard.tsx"
+import { TenantModulesPanel } from "../components/TenantModulesPanel.tsx"
 
 function TenantApps({ ad, namespace }: { ad: ApplicationDefinition; namespace: string }) {
   const { data } = useApplicationInstances(ad, namespace)
@@ -34,7 +35,8 @@ function TenantApps({ ad, namespace }: { ad: ApplicationDefinition; namespace: s
 
 export function ConsoleOverview() {
   const { data, isLoading } = useApplicationDefinitions()
-  const { tenantNamespace, selectedTenant } = useTenantContext()
+  const { tenantNamespace, selectedTenant, tenants } = useTenantContext()
+  const currentTenant = tenants.find((t) => t.metadata.name === selectedTenant)
 
   const ads = useMemo(
     () =>
@@ -76,10 +78,20 @@ export function ConsoleOverview() {
           <Spinner /> Loading…
         </div>
       ) : (
-        <div className="space-y-6">
-          {ads.map((ad) => (
-            <TenantApps key={ad.metadata.name} ad={ad} namespace={tenantNamespace} />
-          ))}
+        <div className="space-y-8">
+          {currentTenant && <TenantModulesPanel tenant={currentTenant} />}
+          <div className="space-y-6">
+            {ads
+              .filter(
+                (ad) =>
+                  !["monitoring", "ingress", "etcd", "seaweedfs"].includes(
+                    ad.metadata.name,
+                  ),
+              )
+              .map((ad) => (
+                <TenantApps key={ad.metadata.name} ad={ad} namespace={tenantNamespace} />
+              ))}
+          </div>
         </div>
       )}
     </div>
