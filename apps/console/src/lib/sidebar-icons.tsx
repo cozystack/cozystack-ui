@@ -1,9 +1,9 @@
 import type { ComponentType } from "react"
 import {
   HardDrive,
+  Monitor,
   Network,
-  Package,
-  Server,
+  PaintBucket,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -45,8 +45,8 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
  * Simple Icons. These use the same pack as cozyportal-ui.
  */
 const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon> = {
-  Bucket: Package,
-  VMInstance: Server,
+  Bucket: PaintBucket,
+  VMInstance: Monitor,
   VMDisk: HardDrive,
   VirtualPrivateCloud: Network,
   Tenant: Users,
