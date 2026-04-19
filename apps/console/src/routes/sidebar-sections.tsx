@@ -3,6 +3,8 @@ import { Layers, Users, type LucideIcon } from "lucide-react"
 import type { SidebarSection } from "@cozystack/ui"
 import { useApplicationDefinitions, groupByCategory } from "../lib/app-definitions.ts"
 import { humanizeKind } from "../lib/humanize.ts"
+import { simpleIconComponent, simpleIconSlug } from "../lib/sidebar-icons.tsx"
+import type { ComponentType } from "react"
 
 const CATEGORY_ORDER = ["IaaS", "PaaS", "NaaS", "Administration"]
 
@@ -30,7 +32,10 @@ export function useSidebarSections(): SidebarSection[] {
       items: items.map((ad) => {
         const kind = ad.spec?.application.kind ?? ad.metadata.name
         const plural = ad.spec?.application.plural ?? ad.metadata.name
-        const icon: LucideIcon = Layers
+        const slug = simpleIconSlug(kind)
+        const icon: ComponentType<{ className?: string }> | LucideIcon = slug
+          ? simpleIconComponent(slug)
+          : Layers
         return {
           label: humanizeKind(kind),
           to: `/console/${plural}`,
