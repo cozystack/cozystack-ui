@@ -17,7 +17,7 @@ export function AppCard({ ad, to }: AppCardProps) {
   return (
     <Link
       to={to}
-      className="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-shadow hover:shadow-sm"
+      className="group flex w-80 items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-shadow hover:shadow-sm"
     >
       <div className="size-11 shrink-0 overflow-hidden rounded-md bg-slate-100">
         {icon ? (
