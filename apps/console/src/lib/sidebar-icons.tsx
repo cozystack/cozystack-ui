@@ -70,7 +70,10 @@ export function lucideIcon(
  * exactly like the Lucide icons next to them.
  */
 export function simpleIconComponent(slug: string): ComponentType<{ className?: string }> {
-  const url = `url(https://cdn.simpleicons.org/${slug}/000000)`
+  // cdn.simpleicons.org rate-limits aggressively (returns 403 from many
+  // browsers and crawlers). Pull the SVG straight out of the simple-icons
+  // npm package via jsDelivr — same files, no rate limits.
+  const url = `url(https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/${slug}.svg)`
   return function SimpleIcon({ className }) {
     return (
       <span
