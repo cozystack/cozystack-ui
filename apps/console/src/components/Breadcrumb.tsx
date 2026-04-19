@@ -1,5 +1,5 @@
 import { Dropdown } from "@cozystack/ui"
-import { useTenantContext } from "../lib/tenant-context.tsx"
+import { tenantDisplayName, useTenantContext } from "../lib/tenant-context.tsx"
 
 /**
  * Subtitle bar that sits under the header and surfaces the active tenant.
@@ -24,10 +24,10 @@ export function Breadcrumb() {
         <Dropdown
           value={selectedTenant ?? ""}
           onChange={selectTenant}
-          options={tenants.map((t) => ({
-            value: t.metadata.name,
-            label: t.metadata.name,
-          }))}
+          options={tenants.map((t) => {
+            const name = tenantDisplayName(t)
+            return { value: name, label: name }
+          })}
           size="sm"
           className="min-w-[140px]"
         />

@@ -6,26 +6,22 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import {
-  useK8sList,
-  type K8sResource,
-} from "@cozystack/k8s-client"
-import {
-  APPS_GROUP,
-  APPS_VERSION,
-  type Tenant,
-} from "@cozystack/types"
-import {
-  ROOT_TENANT_NAMESPACE,
-  SELECTED_TENANT_KEY,
-  tenantNamespace,
-} from "./constants.ts"
+import { useK8sList } from "@cozystack/k8s-client"
+import type { TenantNamespace } from "@cozystack/types"
+import { SELECTED_TENANT_KEY, TENANT_NAMESPACE_PREFIX } from "./constants.ts"
 
 interface TenantContextValue {
-  tenants: Tenant[]
+  /**
+   * Flat list of every TenantNamespace in the cluster, ordered by display
+   * name (the namespace prefix stripped). Callers typically only need
+   * `selectedTenant` / `tenantNamespace`, but the full list is exposed for
+   * pickers and breadcrumbs.
+   */
+  tenants: TenantNamespace[]
+  /** Display name (namespace minus the `tenant-` prefix). */
   selectedTenant: string | null
   selectTenant: (name: string) => void
-  /** Namespace of the selected tenant's workloads (i.e. `tenant-<name>`). */
+  /** Namespace of the selected tenant — `tenant-<name>`. */
   tenantNamespace: string | null
   isLoading: boolean
   error: unknown
@@ -33,38 +29,39 @@ interface TenantContextValue {
 
 const TenantContext = createContext<TenantContextValue | null>(null)
 
+function displayName(ns: TenantNamespace): string {
+  const name = ns.metadata.name
+  return name.startsWith(TENANT_NAMESPACE_PREFIX)
+    ? name.slice(TENANT_NAMESPACE_PREFIX.length)
+    : name
+}
+
 export function TenantProvider({ children }: { children: ReactNode }) {
-  // Cozystack tenants are organised as a tree — every Tenant resource lives in
-  // the namespace of its parent tenant (root tenant sits in `tenant-root`).
-  // For a first pass we just list the root tenant and its direct children; a
-  // true recursive listing would need one call per namespace.
-  const rootList = useK8sList<Tenant>({
-    apiGroup: APPS_GROUP,
-    apiVersion: APPS_VERSION,
-    plural: "tenants",
-    namespace: ROOT_TENANT_NAMESPACE,
+  // TenantNamespace is cluster-scoped, so a single list() call enumerates
+  // every tenant namespace — root, its children and any deeper descendants.
+  const list = useK8sList<TenantNamespace>({
+    apiGroup: "core.cozystack.io",
+    apiVersion: "v1alpha1",
+    plural: "tenantnamespaces",
   })
 
-  const tenants = useMemo<Tenant[]>(() => {
-    return (rootList.data?.items ?? []).slice().sort((a, b) =>
-      a.metadata.name.localeCompare(b.metadata.name),
-    )
-  }, [rootList.data])
+  const tenants = useMemo<TenantNamespace[]>(() => {
+    return (list.data?.items ?? [])
+      .slice()
+      .sort((a, b) => displayName(a).localeCompare(displayName(b)))
+  }, [list.data])
 
   const [selectedTenant, setSelectedTenant] = useState<string | null>(() => {
     if (typeof window === "undefined") return null
     return window.localStorage.getItem(SELECTED_TENANT_KEY)
   })
 
-  // If the stored tenant is not (yet) in the list, fall back to the first one
-  // we know about. Once the list loads we may adopt a persisted value.
   useEffect(() => {
     if (!tenants.length) return
-    if (selectedTenant && tenants.some((t) => t.metadata.name === selectedTenant)) return
+    if (selectedTenant && tenants.some((t) => displayName(t) === selectedTenant)) return
     const fallback =
-      tenants.find((t) => t.metadata.name === "root")?.metadata.name ??
-      tenants[0].metadata.name
-    setSelectedTenant(fallback)
+      tenants.find((t) => displayName(t) === "root") ?? tenants[0]
+    setSelectedTenant(displayName(fallback))
   }, [tenants, selectedTenant])
 
   const selectTenant = (name: string) => {
@@ -76,15 +73,15 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const ns = selectedTenant ? tenantNamespace(selectedTenant) : null
+  const ns = selectedTenant ? `${TENANT_NAMESPACE_PREFIX}${selectedTenant}` : null
 
   const value: TenantContextValue = {
     tenants,
     selectedTenant,
     selectTenant,
     tenantNamespace: ns,
-    isLoading: rootList.isLoading,
-    error: rootList.error,
+    isLoading: list.isLoading,
+    error: list.error,
   }
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
@@ -97,16 +94,8 @@ export function useTenantContext(): TenantContextValue {
 }
 
 /**
- * Returns the tenant namespace, throwing if the user has not selected a tenant
- * yet. Use this in routes that are gated on tenant selection.
+ * Pull the display name of a TenantNamespace (no `tenant-` prefix).
  */
-export function useRequiredTenantNamespace(): string {
-  const { tenantNamespace } = useTenantContext()
-  if (!tenantNamespace) {
-    throw new Error("No tenant selected")
-  }
-  return tenantNamespace
+export function tenantDisplayName(ns: TenantNamespace): string {
+  return displayName(ns)
 }
-
-// Re-export the k8s resource type for convenience in callers.
-export type { K8sResource }

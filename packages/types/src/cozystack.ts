@@ -86,3 +86,13 @@ export interface Tenant extends ApplicationInstance {
     namespace?: string
   }
 }
+
+/**
+ * TenantNamespace (`core.cozystack.io/v1alpha1`) is a cluster-scoped
+ * aggregation that tracks every namespace owned by a tenant. Its name is the
+ * namespace itself (e.g. `tenant-kvaps`) and the labels encode the tenant
+ * hierarchy and which parent namespace each tenant module is installed into.
+ */
+export interface TenantNamespace extends K8sResource {
+  kind: "TenantNamespace"
+}

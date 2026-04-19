@@ -4,6 +4,7 @@ export type {
   ApplicationInstance,
   ApplicationInstanceStatus,
   Tenant,
+  TenantNamespace,
 } from "./cozystack.ts"
 
 export {

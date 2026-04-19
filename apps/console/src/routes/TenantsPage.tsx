@@ -1,8 +1,25 @@
 import { Link } from "react-router"
 import { Plus } from "lucide-react"
-import { StatusBadge, Spinner, Section, Button } from "@cozystack/ui"
-import { useTenantContext } from "../lib/tenant-context.tsx"
-import { formatAge, readyCondition } from "../lib/status.ts"
+import { Spinner, Section, Button } from "@cozystack/ui"
+import type { TenantNamespace } from "@cozystack/types"
+import { tenantDisplayName, useTenantContext } from "../lib/tenant-context.tsx"
+import { formatAge } from "../lib/status.ts"
+
+const MODULE_LABELS: { key: string; label: string }[] = [
+  { key: "namespace.cozystack.io/etcd", label: "etcd" },
+  { key: "namespace.cozystack.io/ingress", label: "ingress" },
+  { key: "namespace.cozystack.io/monitoring", label: "monitoring" },
+  { key: "namespace.cozystack.io/seaweedfs", label: "seaweedfs" },
+]
+
+function enabledModules(ns: TenantNamespace): string[] {
+  const labels = ns.metadata.labels ?? {}
+  return MODULE_LABELS.filter((m) => labels[m.key] != null).map((m) => m.label)
+}
+
+function tenantHost(ns: TenantNamespace): string | undefined {
+  return ns.metadata.labels?.["namespace.cozystack.io/host"]
+}
 
 export function TenantsPage() {
   const { tenants, isLoading } = useTenantContext()
@@ -36,30 +53,26 @@ export function TenantsPage() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
                 <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Namespace</th>
                 <th className="px-4 py-3">Host</th>
                 <th className="px-4 py-3">Modules</th>
-                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Age</th>
-                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {tenants.map((t) => {
-                const ready = readyCondition(t)
-                const modules = [
-                  t.spec?.etcd ? "etcd" : null,
-                  t.spec?.ingress ? "ingress" : null,
-                  t.spec?.monitoring ? "monitoring" : null,
-                  t.spec?.seaweedfs ? "seaweedfs" : null,
-                ].filter(Boolean) as string[]
+                const name = tenantDisplayName(t)
+                const modules = enabledModules(t)
+                const host = tenantHost(t)
                 return (
                   <tr key={t.metadata.name} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono text-xs text-slate-800">
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                      {name}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600">
                       {t.metadata.name}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-600">
-                      {t.spec?.host || "—"}
-                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-600">{host ?? "—"}</td>
                     <td className="px-4 py-3">
                       {modules.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
@@ -76,25 +89,8 @@ export function TenantsPage() {
                         <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      {ready ? (
-                        <StatusBadge tone={ready.status === "True" ? "ok" : "warn"}>
-                          {ready.status === "True" ? "Ready" : (ready.reason ?? "NotReady")}
-                        </StatusBadge>
-                      ) : (
-                        <StatusBadge tone="muted">Unknown</StatusBadge>
-                      )}
-                    </td>
                     <td className="px-4 py-3 tabular-nums text-xs text-slate-500">
                       {formatAge(t.metadata.creationTimestamp)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        to={`/console/tenants/${t.metadata.name}/edit`}
-                        className="text-xs font-medium text-blue-600 hover:underline"
-                      >
-                        Edit
-                      </Link>
                     </td>
                   </tr>
                 )
