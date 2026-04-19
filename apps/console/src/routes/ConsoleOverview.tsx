@@ -23,7 +23,7 @@ function TenantApps({ ad, namespace }: { ad: ApplicationDefinition; namespace: s
           {items.length}
         </span>
       </h2>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+      <div className="flex flex-wrap gap-2">
         {items.map((inst: ApplicationInstance) => (
           <InstanceCard
             key={inst.metadata.name}

@@ -21,7 +21,7 @@ export function InstanceCard({ ad, instance }: InstanceCardProps) {
   return (
     <Link
       to={`/console/${plural}/${instance.metadata.name}`}
-      className="group flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition-shadow hover:shadow-sm"
+      className="group flex w-80 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition-shadow hover:shadow-sm"
     >
       <div className="flex min-w-0 items-center gap-3">
         <div className="size-9 shrink-0 overflow-hidden rounded-md bg-slate-100">
