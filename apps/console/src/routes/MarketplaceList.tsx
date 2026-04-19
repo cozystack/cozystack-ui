@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { useSearchParams } from "react-router"
+import { useParams } from "react-router"
 import { Spinner } from "@cozystack/ui"
 import {
   useApplicationDefinitions,
@@ -9,8 +9,8 @@ import { AppCard } from "../components/AppCard.tsx"
 
 export function MarketplaceList() {
   const { data, isLoading, error } = useApplicationDefinitions()
-  const [params] = useSearchParams()
-  const category = params.get("category")
+  const { category: rawCategory } = useParams<{ category?: string }>()
+  const category = rawCategory ? decodeURIComponent(rawCategory) : null
 
   const categories = useMemo(() => groupByCategory(data), [data])
   const visible = useMemo(

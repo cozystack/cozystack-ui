@@ -1,6 +1,16 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
 
+/*
+ * Make Tailwind scan workspace packages and apps so utility classes from
+ * @cozystack/ui components are emitted in the final stylesheet. Without these
+ * `@source` directives the default scanner only picks up files near this CSS
+ * file, so classes used in sibling workspace packages get dropped as unused.
+ */
+@source "./**/*.{ts,tsx}";
+@source "../../../apps/**/src/**/*.{ts,tsx}";
+@source "../../../packages/**/src/**/*.{ts,tsx}";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

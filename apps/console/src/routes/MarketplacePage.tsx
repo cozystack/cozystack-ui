@@ -6,6 +6,7 @@ export function MarketplacePage() {
   return (
     <Routes>
       <Route index element={<MarketplaceList />} />
+      <Route path="c/:category" element={<MarketplaceList />} />
       <Route path=":appName" element={<ApplicationOrderPage />} />
     </Routes>
   )

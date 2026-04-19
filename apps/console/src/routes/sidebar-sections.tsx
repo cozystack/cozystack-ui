@@ -1,12 +1,31 @@
 import { useMemo } from "react"
-import { Store, LayoutGrid, Boxes, Users } from "lucide-react"
+import {
+  Boxes,
+  Cloud,
+  Database,
+  LayoutGrid,
+  Network,
+  Settings,
+  Users,
+  type LucideIcon,
+} from "lucide-react"
 import type { SidebarSection } from "@cozystack/ui"
 import { useApplicationDefinitions, groupByCategory } from "../lib/app-definitions.ts"
 
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  Administration: Settings,
+  IaaS: Cloud,
+  PaaS: Database,
+  NaaS: Network,
+}
+
 /**
  * Sidebar is driven entirely by ApplicationDefinitions in the cluster.
- * Marketplace shows categories; Console shows the categories of apps the
- * current tenant can manage.
+ * Marketplace shows categories; Console shows static sub-sections.
+ *
+ * Categories are kept in the path (`/marketplace/c/<category>`) rather than
+ * in a query string so that `NavLink`'s pathname-based active detection works
+ * without custom logic.
  */
 export function useSidebarSections(): SidebarSection[] {
   const { data } = useApplicationDefinitions()
@@ -17,8 +36,8 @@ export function useSidebarSections(): SidebarSection[] {
       { label: "All applications", to: "/marketplace", end: true, icon: LayoutGrid },
       ...categories.map(({ category }) => ({
         label: category,
-        to: `/marketplace?category=${encodeURIComponent(category)}`,
-        icon: Store,
+        to: `/marketplace/c/${encodeURIComponent(category)}`,
+        icon: CATEGORY_ICONS[category] ?? LayoutGrid,
       })),
     ]
     const consoleItems = [
