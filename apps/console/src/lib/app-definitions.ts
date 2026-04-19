@@ -121,7 +121,16 @@ export function releasePrefix(ad: ApplicationDefinition): string {
   return ad.spec?.release?.prefix ?? `${ad.spec?.application.singular ?? ad.metadata.name}-`
 }
 
-/** Tenant modules are singleton add-ons toggled via Tenant.spec flags. */
+/**
+ * Tenant modules are singleton add-ons (etcd, ingress, monitoring,
+ * seaweedfs, info) enabled through Tenant.spec flags. They are recognised
+ * by `spec.dashboard.module === true` *and* `category === "Administration"`.
+ * The `module` flag alone isn't enough: Harbor is flagged `module: true`
+ * but sits under PaaS and is a regular multi-instance application.
+ */
 export function isTenantModule(ad: ApplicationDefinition): boolean {
-  return ad.spec?.dashboard?.module === true
+  return (
+    ad.spec?.dashboard?.module === true &&
+    ad.spec?.dashboard?.category === "Administration"
+  )
 }
