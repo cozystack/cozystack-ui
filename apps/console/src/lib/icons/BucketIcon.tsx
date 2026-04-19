@@ -6,7 +6,7 @@ interface IconProps {
  * Classic pail silhouette in the lucide stroke style (round caps, 2px
  * stroke, 24×24 viewBox). Lucide doesn't ship a real bucket glyph —
  * `PaintBucket` has a drip and `Container` is a shipping container — so
- * we inline this one.
+ * we inline this one: trapezoidal body, horizontal rim, curved wire handle.
  */
 export function BucketIcon({ className }: IconProps) {
   return (
@@ -21,8 +21,12 @@ export function BucketIcon({ className }: IconProps) {
       className={className}
       aria-hidden
     >
-      <path d="M4 8h16l-1.5 11a2 2 0 0 1-2 1.8H7.5a2 2 0 0 1-2-1.8L4 8Z" />
-      <path d="M8 8a4 4 0 0 1 8 0" />
+      {/* Wire handle */}
+      <path d="M7 7c0-3 10-3 10 0" />
+      {/* Top rim */}
+      <path d="M3 7h18" />
+      {/* Body (trapezoid, wider at top, tapering to the bottom) */}
+      <path d="M4 7 6 21h12L20 7" />
     </svg>
   )
 }
