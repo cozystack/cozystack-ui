@@ -37,6 +37,10 @@ export function SchemaForm({
       source: {
         "ui:widget": "SourceWidget",
       },
+      // Use StorageClassWidget for storageClass fields
+      storageClass: {
+        "ui:widget": "StorageClassWidget",
+      },
     }),
     [keysOrder],
   )
