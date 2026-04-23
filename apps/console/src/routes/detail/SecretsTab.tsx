@@ -43,6 +43,7 @@ function SecretRow({
   base64Value: string
 }) {
   const [revealed, setRevealed] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const { data } = useK8sGet<K8sResource<unknown, unknown> & SecretLike>(
     { ...TENANT_SECRETS_REF, namespace, name },
     { enabled: revealed },
@@ -50,17 +51,35 @@ function SecretRow({
   const fullValue = revealed
     ? decodeValue(data?.data?.[keyName]) || data?.stringData?.[keyName] || decodeValue(base64Value)
     : ""
+
+  const isLarge = fullValue.split('\n').length > 5 || fullValue.length > 200
+
   return (
-    <div className="flex items-center justify-between gap-3 px-5 py-2 text-sm">
-      <code className="shrink-0 text-xs text-slate-500">{keyName}</code>
-      <div className="flex flex-1 items-center gap-2 font-mono text-xs text-slate-800">
+    <div className="flex items-start justify-between gap-3 px-5 py-2 text-sm">
+      <code className="shrink-0 text-xs text-slate-500 pt-1">{keyName}</code>
+      <div className="flex-1">
         {revealed ? (
-          <span className="break-all">{fullValue || "(empty)"}</span>
+          <>
+            <pre className={`whitespace-pre-wrap break-all font-mono text-[11px] leading-tight overflow-auto rounded bg-slate-900 text-slate-100 p-2 ${
+              expanded ? 'max-h-96' : 'max-h-20'
+            }`}>
+              {fullValue || "(empty)"}
+            </pre>
+            {isLarge && (
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="mt-1 text-xs text-blue-600 hover:text-blue-700"
+              >
+                {expanded ? "Show less" : "Show more"}
+              </button>
+            )}
+          </>
         ) : (
           <span className="text-slate-400">••••••••</span>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1 pt-1">
         <button
           type="button"
           onClick={() => setRevealed((v) => !v)}
