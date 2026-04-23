@@ -90,6 +90,10 @@ export function useK8sList<T extends K8sResource>(
           queryClient.invalidateQueries({ queryKey })
         }, 1000)
       },
+      {
+        labelSelector,
+        fieldSelector,
+      },
     )
 
     return () => {
