@@ -92,16 +92,23 @@ export function ApplicationDetailPage() {
   const ready = readyCondition(instance)
   const icon = iconDataUrl(ad)
   const base = `/console/${plural}/${name}`
+  const kind = ad.spec?.application.kind
+
   // Absolute URLs so NavLink always rewrites the whole "/<plural>/<name>/..."
   // suffix instead of appending to the current tab path.
-  const tabs = [
-    { to: base, label: "Overview", end: true },
-    { to: `${base}/workloads`, label: "Workloads" },
-    { to: `${base}/services`, label: "Services" },
-    { to: `${base}/ingresses`, label: "Ingresses" },
-    { to: `${base}/secrets`, label: "Secrets" },
-  ]
-  if (ad.spec?.application.kind === "VMInstance") {
+  const tabs = [{ to: base, label: "Overview", end: true }]
+
+  // VMDisk and similar storage-only resources don't have workloads/services/ingresses
+  if (kind !== "VMDisk") {
+    tabs.push(
+      { to: `${base}/workloads`, label: "Workloads" },
+      { to: `${base}/services`, label: "Services" },
+      { to: `${base}/ingresses`, label: "Ingresses" },
+      { to: `${base}/secrets`, label: "Secrets" },
+    )
+  }
+
+  if (kind === "VMInstance") {
     tabs.push({ to: `${base}/vnc`, label: "VNC" })
   }
 
