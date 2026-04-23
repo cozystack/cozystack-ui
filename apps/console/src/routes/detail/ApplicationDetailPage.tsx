@@ -98,18 +98,24 @@ export function ApplicationDetailPage() {
   // suffix instead of appending to the current tab path.
   const tabs = [{ to: base, label: "Overview", end: true }]
 
-  // VMDisk and similar storage-only resources don't have workloads/services/ingresses
-  if (kind !== "VMDisk") {
+  // Different tab sets for different resource types
+  if (kind === "VMDisk") {
+    // VMDisk: storage-only resource, no workloads/services/ingresses/secrets
+  } else if (kind === "VMInstance") {
+    // VMInstance: VM-specific tabs (no ingresses/secrets)
+    tabs.push(
+      { to: `${base}/workloads`, label: "Workloads" },
+      { to: `${base}/services`, label: "Services" },
+      { to: `${base}/vnc`, label: "VNC" },
+    )
+  } else {
+    // Other resources: full tab set
     tabs.push(
       { to: `${base}/workloads`, label: "Workloads" },
       { to: `${base}/services`, label: "Services" },
       { to: `${base}/ingresses`, label: "Ingresses" },
       { to: `${base}/secrets`, label: "Secrets" },
     )
-  }
-
-  if (kind === "VMInstance") {
-    tabs.push({ to: `${base}/vnc`, label: "VNC" })
   }
 
   return (
