@@ -6,6 +6,33 @@ import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
 import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
 import "./schema-form.css"
 
+/**
+ * Recursively find all storageClass fields in schema and add widget to uiSchema
+ */
+function addStorageClassWidgets(schema: RJSFSchema, uiSchema: UiSchema = {}): UiSchema {
+  if (!schema || typeof schema !== "object") return uiSchema
+
+  const properties = (schema as any).properties
+  if (!properties || typeof properties !== "object") return uiSchema
+
+  const result = { ...uiSchema }
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (key === "storageClass" && typeof value === "object" && (value as any).type === "string") {
+      // Found a storageClass field - add widget
+      result[key] = {
+        ...result[key],
+        "ui:widget": "StorageClassWidget",
+      }
+    } else if (typeof value === "object" && (value as any).properties) {
+      // Recursively process nested objects
+      result[key] = addStorageClassWidgets(value as RJSFSchema, result[key] as UiSchema)
+    }
+  }
+
+  return result
+}
+
 interface SchemaFormProps {
   openAPISchema: string
   keysOrder?: string[][]
@@ -29,17 +56,19 @@ export function SchemaForm({
     }
   }, [openAPISchema])
 
-  const uiSchema = useMemo<UiSchema>(
-    () => ({
+  const uiSchema = useMemo<UiSchema>(() => {
+    const baseUiSchema = {
       "ui:submitButtonOptions": { norender: true },
       ...keysOrderToUiSchema(keysOrder),
       // Use SourceWidget for mutually exclusive source fields
       source: {
         "ui:widget": "SourceWidget",
       },
-    }),
-    [keysOrder],
-  )
+    }
+
+    // Automatically add StorageClassWidget for all storageClass fields
+    return addStorageClassWidgets(schema, baseUiSchema)
+  }, [keysOrder, schema])
 
   return (
     <div className="rjsf-container">
