@@ -3,6 +3,7 @@ import Form from "@rjsf/core"
 import validator from "@rjsf/validator-ajv8"
 import type { RJSFSchema, UiSchema } from "@rjsf/utils"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
+import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
 import "./schema-form.css"
 
 interface SchemaFormProps {
@@ -32,6 +33,10 @@ export function SchemaForm({
     () => ({
       "ui:submitButtonOptions": { norender: true },
       ...keysOrderToUiSchema(keysOrder),
+      // Use SourceWidget for mutually exclusive source fields
+      source: {
+        "ui:widget": "SourceWidget",
+      },
     }),
     [keysOrder],
   )
@@ -43,6 +48,8 @@ export function SchemaForm({
         uiSchema={uiSchema}
         formData={formData}
         validator={validator}
+        templates={customTemplates}
+        widgets={customWidgets}
         onChange={(e) => onChange(e.formData)}
         liveValidate={false}
         showErrorList={false}
