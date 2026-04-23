@@ -15,12 +15,11 @@ export function CustomObjectFieldTemplate<
   const { schema, formData, onChange, readonly, disabled, uiSchema } = props
 
   // Check if this is a free-form key-value object
-  // Must have x-kubernetes-preserve-unknown-fields OR explicit additionalProperties (true or object schema)
+  // Must have x-kubernetes-preserve-unknown-fields OR explicit additionalProperties: true
   // This excludes empty marker objects (like upload: {}) which have no properties and no additionalProperties
   const hasExplicitAdditionalProps =
     (schema as any)["x-kubernetes-preserve-unknown-fields"] === true ||
-    schema.additionalProperties === true ||
-    (typeof schema.additionalProperties === "object" && schema.additionalProperties !== null)
+    schema.additionalProperties === true
 
   const isFreeFormObject =
     (!schema.properties || Object.keys(schema.properties).length === 0) &&
