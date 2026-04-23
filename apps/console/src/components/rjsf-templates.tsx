@@ -8,7 +8,6 @@ import type {
 } from "@rjsf/utils"
 import { CustomObjectFieldTemplate } from "./CustomObjectFieldTemplate.tsx"
 import { SourceWidget } from "./SourceWidget.tsx"
-import { StorageClassWidget } from "./StorageClassWidget.tsx"
 
 function IconButton<
   T = any,
@@ -56,5 +55,4 @@ export const customTemplates: Partial<TemplatesType> = {
 
 export const customWidgets: Partial<WidgetsType> = {
   SourceWidget: SourceWidget,
-  StorageClassWidget: StorageClassWidget,
 }
