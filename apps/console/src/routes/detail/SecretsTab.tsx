@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Eye, EyeOff, Copy } from "lucide-react"
+import { Eye, EyeOff, Copy, ChevronDown, ChevronRight } from "lucide-react"
 import {
   useK8sGet,
   useK8sList,
@@ -10,10 +10,10 @@ import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/type
 import { appInstanceLabel } from "../../lib/labels.ts"
 import { formatAge } from "../../lib/status.ts"
 
-const TENANT_SECRETS_REF = {
-  apiGroup: "core.cozystack.io",
-  apiVersion: "v1alpha1",
-  plural: "tenantsecrets",
+const SECRETS_REF = {
+  apiGroup: "",
+  apiVersion: "v1",
+  plural: "secrets",
 }
 
 interface SecretLike {
@@ -45,7 +45,7 @@ function SecretRow({
   const [revealed, setRevealed] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const { data } = useK8sGet<K8sResource<unknown, unknown> & SecretLike>(
-    { ...TENANT_SECRETS_REF, namespace, name },
+    { ...SECRETS_REF, namespace, name },
     { enabled: revealed },
   )
   const fullValue = revealed
@@ -102,6 +102,59 @@ function SecretRow({
   )
 }
 
+function SecretItem({
+  secret,
+  namespace,
+}: {
+  secret: K8sResource & SecretLike
+  namespace: string
+}) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const keys = Object.keys(secret.data ?? {})
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((v) => !v)}
+        className="flex w-full items-center justify-between px-5 py-3 text-sm hover:bg-slate-50"
+      >
+        <div className="flex items-center gap-2">
+          {isExpanded ? (
+            <ChevronDown className="size-4 shrink-0 text-slate-400" />
+          ) : (
+            <ChevronRight className="size-4 shrink-0 text-slate-400" />
+          )}
+          <div className="text-left">
+            <p className="font-mono text-xs text-slate-800">
+              {secret.metadata.name}
+            </p>
+            <p className="text-xs text-slate-500">
+              {secret.type ?? "Opaque"} · {keys.length} key{keys.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+        </div>
+        <span className="tabular-nums text-xs text-slate-500">
+          {formatAge(secret.metadata.creationTimestamp)}
+        </span>
+      </button>
+      {isExpanded && keys.length > 0 && (
+        <div className="border-t border-slate-100 bg-slate-50">
+          {keys.map((k) => (
+            <SecretRow
+              key={k}
+              namespace={namespace}
+              name={secret.metadata.name}
+              keyName={k}
+              base64Value={secret.data?.[k] ?? ""}
+            />
+          ))}
+        </div>
+      )}
+    </li>
+  )
+}
+
 export function SecretsTab({
   ad,
   instance,
@@ -110,55 +163,30 @@ export function SecretsTab({
   instance: ApplicationInstance
 }) {
   const ns = instance.metadata.namespace ?? ""
+  const labelSelector = [
+    appInstanceLabel(ad, instance),
+    "internal.cozystack.io/tenantresource=false",
+  ].join(",")
+
   const { data, isLoading } = useK8sList<K8sResource & SecretLike>(
-    { ...TENANT_SECRETS_REF, namespace: ns },
-    { labelSelector: appInstanceLabel(ad, instance) },
+    { ...SECRETS_REF, namespace: ns },
+    { labelSelector },
   )
   const items = data?.items ?? []
   return (
     <div className="p-6">
-      <Section title="Tenant secrets" bodyClassName="p-0">
+      <Section title="Secrets" bodyClassName="p-0">
         {isLoading ? (
           <div className="flex items-center gap-2 px-5 py-4 text-xs text-slate-500">
             <Spinner /> Loading…
           </div>
         ) : items.length === 0 ? (
-          <div className="px-5 py-6 text-sm text-slate-500">No tenant secrets.</div>
+          <div className="px-5 py-6 text-sm text-slate-500">No secrets.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {items.map((sec) => {
-              const keys = Object.keys(sec.data ?? {})
-              return (
-                <li key={sec.metadata.name}>
-                  <div className="flex items-center justify-between px-5 py-3 text-sm">
-                    <div>
-                      <p className="font-mono text-xs text-slate-800">
-                        {sec.metadata.name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {sec.type ?? "Opaque"}
-                      </p>
-                    </div>
-                    <span className="tabular-nums text-xs text-slate-500">
-                      {formatAge(sec.metadata.creationTimestamp)}
-                    </span>
-                  </div>
-                  {keys.length > 0 && (
-                    <div className="border-t border-slate-100 bg-slate-50">
-                      {keys.map((k) => (
-                        <SecretRow
-                          key={k}
-                          namespace={ns}
-                          name={sec.metadata.name}
-                          keyName={k}
-                          base64Value={sec.data?.[k] ?? ""}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </li>
-              )
-            })}
+            {items.map((sec) => (
+              <SecretItem key={sec.metadata.name} secret={sec} namespace={ns} />
+            ))}
           </ul>
         )}
       </Section>
