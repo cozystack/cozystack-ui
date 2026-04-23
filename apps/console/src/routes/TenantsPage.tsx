@@ -1,5 +1,5 @@
 import { Link } from "react-router"
-import { Plus } from "lucide-react"
+import { Plus, Edit } from "lucide-react"
 import { Spinner, Section, Button } from "@cozystack/ui"
 import type { TenantNamespace } from "@cozystack/types"
 import { tenantDisplayName, useTenantContext } from "../lib/tenant-context.tsx"
@@ -57,6 +57,7 @@ export function TenantsPage() {
                 <th className="px-4 py-3">Host</th>
                 <th className="px-4 py-3">Modules</th>
                 <th className="px-4 py-3">Age</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -91,6 +92,13 @@ export function TenantsPage() {
                     </td>
                     <td className="px-4 py-3 tabular-nums text-xs text-slate-500">
                       {formatAge(t.metadata.creationTimestamp)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link to={`/console/tenants/${name}/edit`}>
+                        <Button variant="outline" size="sm">
+                          <Edit className="size-3" /> Edit
+                        </Button>
+                      </Link>
                     </td>
                   </tr>
                 )
