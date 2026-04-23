@@ -20,7 +20,7 @@ export function ServicesTab({
   const ns = instance.metadata.namespace ?? ""
   const { data, isLoading } = useK8sList<K8sResource<ServiceSpec>>(
     { apiGroup: "", apiVersion: "v1", plural: "services", namespace: ns },
-    { labelSelector: `${appInstanceLabel(ad, instance)},internal.cozystack.io/tenantresource=true` },
+    { labelSelector: appInstanceLabel(ad, instance) },
   )
   const items = data?.items ?? []
 

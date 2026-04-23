@@ -21,7 +21,7 @@ export function IngressesTab({
   const ns = instance.metadata.namespace ?? ""
   const { data, isLoading } = useK8sList<K8sResource<IngressSpec>>(
     { apiGroup: "networking.k8s.io", apiVersion: "v1", plural: "ingresses", namespace: ns },
-    { labelSelector: `${appInstanceLabel(ad, instance)},internal.cozystack.io/tenantresource=true` },
+    { labelSelector: appInstanceLabel(ad, instance) },
   )
   const items = data?.items ?? []
 
