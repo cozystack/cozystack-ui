@@ -10,10 +10,10 @@ import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/type
 import { appInstanceLabel } from "../../lib/labels.ts"
 import { formatAge } from "../../lib/status.ts"
 
-const TENANT_SECRETS_REF = {
-  apiGroup: "core.cozystack.io",
-  apiVersion: "v1alpha1",
-  plural: "tenantsecrets",
+const SECRETS_REF = {
+  apiGroup: "",
+  apiVersion: "v1",
+  plural: "secrets",
 }
 
 interface SecretLike {
@@ -45,7 +45,7 @@ function SecretRow({
   const [revealed, setRevealed] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const { data } = useK8sGet<K8sResource<unknown, unknown> & SecretLike>(
-    { ...TENANT_SECRETS_REF, namespace, name },
+    { ...SECRETS_REF, namespace, name },
     { enabled: revealed },
   )
   const fullValue = revealed
@@ -111,19 +111,19 @@ export function SecretsTab({
 }) {
   const ns = instance.metadata.namespace ?? ""
   const { data, isLoading } = useK8sList<K8sResource & SecretLike>(
-    { ...TENANT_SECRETS_REF, namespace: ns },
-    { labelSelector: appInstanceLabel(ad, instance) },
+    { ...SECRETS_REF, namespace: ns },
+    { labelSelector: `${appInstanceLabel(ad, instance)},internal.cozystack.io/tenantresource=false` },
   )
   const items = data?.items ?? []
   return (
     <div className="p-6">
-      <Section title="Tenant secrets" bodyClassName="p-0">
+      <Section title="Secrets" bodyClassName="p-0">
         {isLoading ? (
           <div className="flex items-center gap-2 px-5 py-4 text-xs text-slate-500">
             <Spinner /> Loading…
           </div>
         ) : items.length === 0 ? (
-          <div className="px-5 py-6 text-sm text-slate-500">No tenant secrets.</div>
+          <div className="px-5 py-6 text-sm text-slate-500">No secrets.</div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {items.map((sec) => {
