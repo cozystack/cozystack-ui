@@ -36,8 +36,8 @@ export function Sidebar({ sections }: SidebarProps) {
   }
 
   return (
-    <aside className="w-52 shrink-0 border-r border-slate-200 bg-white">
-      <nav className="py-3">
+    <aside className="flex w-52 shrink-0 flex-col border-r border-slate-200 bg-white">
+      <nav className="flex-1 overflow-y-auto py-3">
         {sections.map((section) => (
           <div key={section.title} className="mb-1">
             <button
