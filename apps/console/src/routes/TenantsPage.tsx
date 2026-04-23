@@ -1,19 +1,21 @@
 import { Link } from "react-router"
 import { Plus, Edit } from "lucide-react"
 import { Spinner, Section, Button } from "@cozystack/ui"
-import { useK8sList } from "@cozystack/k8s-client"
 import type { TenantNamespace } from "@cozystack/types"
 import { tenantDisplayName, useTenantContext } from "../lib/tenant-context.tsx"
 import { formatAge } from "../lib/status.ts"
 
-interface TenantModule {
-  metadata: {
-    name: string
-    namespace: string
-  }
-}
+const MODULE_LABELS: { key: string; label: string }[] = [
+  { key: "namespace.cozystack.io/etcd", label: "etcd" },
+  { key: "namespace.cozystack.io/ingress", label: "ingress" },
+  { key: "namespace.cozystack.io/monitoring", label: "monitoring" },
+  { key: "namespace.cozystack.io/seaweedfs", label: "seaweedfs" },
+]
 
-const MODULE_NAMES = ["etcd", "ingress", "monitoring", "seaweedfs"]
+function enabledModules(ns: TenantNamespace): string[] {
+  const labels = ns.metadata.labels ?? {}
+  return MODULE_LABELS.filter((m) => labels[m.key] != null).map((m) => m.label)
+}
 
 function tenantHost(ns: TenantNamespace): string | undefined {
   return ns.metadata.labels?.["namespace.cozystack.io/host"]
@@ -21,30 +23,6 @@ function tenantHost(ns: TenantNamespace): string | undefined {
 
 export function TenantsPage() {
   const { tenants, isLoading } = useTenantContext()
-
-  // Load all TenantModules to determine which modules are enabled per tenant
-  const { data: modulesData } = useK8sList<TenantModule>({
-    apiGroup: "core.cozystack.io",
-    apiVersion: "v1alpha1",
-    plural: "tenantmodules",
-  })
-
-  // Group modules by namespace
-  const modulesByNamespace = (modulesData?.items ?? []).reduce(
-    (acc, mod) => {
-      const ns = mod.metadata.namespace
-      if (!acc[ns]) acc[ns] = []
-      acc[ns].push(mod.metadata.name)
-      return acc
-    },
-    {} as Record<string, string[]>,
-  )
-
-  // Get enabled modules for a tenant namespace
-  const getEnabledModules = (ns: TenantNamespace): string[] => {
-    const nsModules = modulesByNamespace[ns.metadata.name] ?? []
-    return MODULE_NAMES.filter((m) => nsModules.includes(m))
-  }
 
   return (
     <div className="p-6">
@@ -85,7 +63,7 @@ export function TenantsPage() {
             <tbody className="divide-y divide-slate-100">
               {tenants.map((t) => {
                 const name = tenantDisplayName(t)
-                const modules = getEnabledModules(t)
+                const modules = enabledModules(t)
                 const host = tenantHost(t)
                 return (
                   <tr key={t.metadata.name} className="hover:bg-slate-50">
