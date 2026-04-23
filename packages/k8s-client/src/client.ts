@@ -197,6 +197,7 @@ export class K8sClient {
     resourceVersion: string,
     onEvent: (event: WatchEvent<T>) => void,
     onError?: (error: Error) => void,
+    search?: { labelSelector?: string; fieldSelector?: string },
   ): () => void {
     const path = this.buildPath(apiGroup, apiVersion, plural, namespace)
     const params = new URLSearchParams({
@@ -204,6 +205,8 @@ export class K8sClient {
       resourceVersion,
       allowWatchBookmarks: "true",
     })
+    if (search?.labelSelector) params.set("labelSelector", search.labelSelector)
+    if (search?.fieldSelector) params.set("fieldSelector", search.fieldSelector)
 
     const controller = new AbortController()
 
