@@ -36,19 +36,22 @@ function SecretRow({
   name,
   keyName,
   base64Value,
+  forceReveal,
 }: {
   namespace: string
   name: string
   keyName: string
   base64Value: string
+  forceReveal?: boolean
 }) {
   const [revealed, setRevealed] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const shouldReveal = forceReveal || revealed
   const { data } = useK8sGet<K8sResource<unknown, unknown> & SecretLike>(
     { ...SECRETS_REF, namespace, name },
-    { enabled: revealed },
+    { enabled: shouldReveal },
   )
-  const fullValue = revealed
+  const fullValue = shouldReveal
     ? decodeValue(data?.data?.[keyName]) || data?.stringData?.[keyName] || decodeValue(base64Value)
     : ""
 
@@ -58,7 +61,7 @@ function SecretRow({
     <div className="flex items-start justify-between gap-3 px-5 py-2 text-sm">
       <code className="shrink-0 text-xs text-slate-500 pt-1">{keyName}</code>
       <div className="flex-1">
-        {revealed ? (
+        {shouldReveal ? (
           <>
             <pre className={`whitespace-pre-wrap break-all font-mono text-[11px] leading-tight overflow-auto rounded bg-slate-900 text-slate-100 p-2 ${
               expanded ? 'max-h-96' : 'max-h-20'
@@ -110,16 +113,17 @@ function SecretItem({
   namespace: string
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [revealAll, setRevealAll] = useState(false)
   const keys = Object.keys(secret.data ?? {})
 
   return (
     <li>
-      <button
-        type="button"
-        onClick={() => setIsExpanded((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-3 text-sm hover:bg-slate-50"
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-5 py-3 text-sm">
+        <button
+          type="button"
+          onClick={() => setIsExpanded((v) => !v)}
+          className="flex flex-1 items-center gap-2 text-left hover:bg-slate-50 -mx-5 px-5 py-3 -my-3"
+        >
           {isExpanded ? (
             <ChevronDown className="size-4 shrink-0 text-slate-400" />
           ) : (
@@ -133,11 +137,21 @@ function SecretItem({
               {secret.type ?? "Opaque"} · {keys.length} key{keys.length !== 1 ? "s" : ""}
             </p>
           </div>
+        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setRevealAll((v) => !v)}
+            className="rounded p-1 text-slate-500 hover:bg-slate-100"
+            title={revealAll ? "Hide all keys" : "Reveal all keys"}
+          >
+            {revealAll ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </button>
+          <span className="tabular-nums text-xs text-slate-500">
+            {formatAge(secret.metadata.creationTimestamp)}
+          </span>
         </div>
-        <span className="tabular-nums text-xs text-slate-500">
-          {formatAge(secret.metadata.creationTimestamp)}
-        </span>
-      </button>
+      </div>
       {isExpanded && keys.length > 0 && (
         <div className="border-t border-slate-100 bg-slate-50">
           {keys.map((k) => (
@@ -147,6 +161,7 @@ function SecretItem({
               name={secret.metadata.name}
               keyName={k}
               base64Value={secret.data?.[k] ?? ""}
+              forceReveal={revealAll}
             />
           ))}
         </div>
