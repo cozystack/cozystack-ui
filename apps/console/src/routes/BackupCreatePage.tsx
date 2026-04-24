@@ -39,7 +39,7 @@ function enrichSchemaWithEnums(
   return result
 }
 
-export function BackupPlanCreatePage() {
+export function BackupCreatePage() {
   const navigate = useNavigate()
   const { tenantNamespace } = useTenantContext()
   const { data: appDefs } = useApplicationDefinitions()
@@ -48,15 +48,8 @@ export function BackupPlanCreatePage() {
 
   // Get base schema from CRD
   const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
-    "plans.backups.cozystack.io"
+    "backups.backups.cozystack.io"
   )
-
-  // Get BackupClasses
-  const { data: backupClassesData } = useK8sList<any>({
-    apiGroup: "backups.cozystack.io",
-    apiVersion: "v1alpha1",
-    plural: "backupclasses",
-  })
 
   // Get instances for selected kind
   const selectedKind = formData?.applicationRef?.kind
@@ -75,7 +68,7 @@ export function BackupPlanCreatePage() {
   const createMutation = useK8sCreate({
     apiGroup: "backups.cozystack.io",
     apiVersion: "v1alpha1",
-    plural: "plans",
+    plural: "backups",
     namespace: tenantNamespace ?? "",
   })
 
@@ -84,7 +77,6 @@ export function BackupPlanCreatePage() {
 
     const base = JSON.parse(baseSchema)
     const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
-    const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
     const enumMap: Record<string, string[]> = {}
@@ -96,20 +88,20 @@ export function BackupPlanCreatePage() {
     if (selectedKind && instances.length > 0) {
       enumMap["applicationRef.name"] = instances
     }
-    if (backupClasses.length > 0) {
-      enumMap["backupClassName"] = backupClasses
-    }
 
     // Enrich schema with enum values
     const enriched = enrichSchemaWithEnums(base, [], enumMap)
 
-    // Add default value for apiGroup
+    // Add default values for apiGroup fields
     if (enriched.properties?.applicationRef?.properties?.apiGroup) {
       enriched.properties.applicationRef.properties.apiGroup.default = "apps.cozystack.io"
     }
+    if (enriched.properties?.strategyRef?.properties?.apiGroup) {
+      enriched.properties.strategyRef.properties.apiGroup.default = "strategy.backups.cozystack.io"
+    }
 
     return JSON.stringify(enriched)
-  }, [baseSchema, appDefs, backupClassesData, instancesData, selectedKind])
+  }, [baseSchema, appDefs, instancesData, selectedKind])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -124,14 +116,19 @@ export function BackupPlanCreatePage() {
       return
     }
 
-    if (!formData.backupClassName) {
-      alert("Backup class name is required")
+    if (!formData.strategyRef?.kind || !formData.strategyRef?.name) {
+      alert("Strategy reference is required")
+      return
+    }
+
+    if (!formData.takenAt) {
+      alert("Taken at timestamp is required")
       return
     }
 
     const resource = {
       apiVersion: "backups.cozystack.io/v1alpha1",
-      kind: "Plan",
+      kind: "Backup",
       metadata: {
         name: name.trim(),
         namespace: tenantNamespace,
@@ -141,14 +138,14 @@ export function BackupPlanCreatePage() {
 
     try {
       await createMutation.mutateAsync(resource)
-      navigate("/console/backups/plans")
+      navigate("/console/backups/backups")
     } catch (err) {
-      alert(`Failed to create Plan: ${(err as Error).message}`)
+      alert(`Failed to create Backup: ${(err as Error).message}`)
     }
   }
 
   const handleCancel = () => {
-    navigate("/console/backups/plans")
+    navigate("/console/backups/backups")
   }
 
   if (schemaLoading) {
@@ -162,7 +159,7 @@ export function BackupPlanCreatePage() {
   if (!schema) {
     return (
       <div className="p-8 text-red-600">
-        Failed to load Plan schema. Please refresh the page.
+        Failed to load Backup schema. Please refresh the page.
       </div>
     )
   }
@@ -174,9 +171,9 @@ export function BackupPlanCreatePage() {
           <Archive className="size-6 text-slate-600" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">Create Plan</h1>
+          <h1 className="text-lg font-semibold text-slate-900">Create Backup</h1>
           <p className="text-xs text-slate-500">
-            Configure a backup plan for your application
+            Create a backup snapshot for an application
           </p>
         </div>
       </div>
@@ -186,13 +183,13 @@ export function BackupPlanCreatePage() {
           <div className="space-y-4 p-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Plan Name <span className="text-red-500">*</span>
+                Backup Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="my-backup-plan"
+                placeholder="my-backup"
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                 required
               />

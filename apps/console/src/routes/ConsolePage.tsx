@@ -11,6 +11,7 @@ import { BackupResourceListPage } from "./BackupResourceListPage.tsx"
 import { BackupResourceCreatePageWithData } from "./BackupResourceCreatePageWithData.tsx"
 import { BackupResourceEditPage } from "./BackupResourceEditPage.tsx"
 import { BackupPlanCreatePage } from "./BackupPlanCreatePage.tsx"
+import { BackupCreatePage } from "./BackupCreatePage.tsx"
 import { BackupRestoreJobCreatePage } from "./BackupRestoreJobCreatePage.tsx"
 
 export function ConsolePage() {
@@ -51,7 +52,7 @@ export function ConsolePage() {
       />
       <Route
         path="backups/backups/create"
-        element={<BackupResourceCreatePageWithData resourceType="backups" title="Backups" />}
+        element={<BackupCreatePage />}
       />
       <Route
         path="backups/backups/:name/edit"

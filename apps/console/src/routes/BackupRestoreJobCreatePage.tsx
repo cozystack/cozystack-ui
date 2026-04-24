@@ -97,12 +97,19 @@ export function BackupRestoreJobCreatePage() {
     if (kinds.length > 0) {
       enumMap["targetRef.kind"] = kinds
     }
+    // Add instances enum only after kind is selected
     if (selectedKind && instances.length > 0) {
       enumMap["targetRef.name"] = instances
     }
 
     // Enrich schema with enum values
     const enriched = enrichSchemaWithEnums(base, [], enumMap)
+
+    // Add default value for apiGroup
+    if (enriched.properties?.targetRef?.properties?.apiGroup) {
+      enriched.properties.targetRef.properties.apiGroup.default = "apps.cozystack.io"
+    }
+
     return JSON.stringify(enriched)
   }, [baseSchema, backupsData, appDefs, instancesData, selectedKind])
 
