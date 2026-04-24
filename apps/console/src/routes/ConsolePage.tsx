@@ -9,6 +9,7 @@ import { ApplicationDetailPage } from "./detail/ApplicationDetailPage.tsx"
 import { ApplicationEditRoute } from "./detail/ApplicationEditRoute.tsx"
 import { BackupResourceListPage } from "./BackupResourceListPage.tsx"
 import { BackupResourceCreatePageWithData } from "./BackupResourceCreatePageWithData.tsx"
+import { BackupResourceEditPage } from "./BackupResourceEditPage.tsx"
 import { BackupPlanCreatePage } from "./BackupPlanCreatePage.tsx"
 import { BackupRestoreJobCreatePage } from "./BackupRestoreJobCreatePage.tsx"
 
@@ -29,12 +30,20 @@ export function ConsolePage() {
         element={<BackupPlanCreatePage />}
       />
       <Route
+        path="backups/plans/:name/edit"
+        element={<BackupResourceEditPage resourceType="plans" title="Plans" />}
+      />
+      <Route
         path="backups/backupjobs"
         element={<BackupResourceListPage resourceType="backupjobs" title="Backup Jobs" />}
       />
       <Route
         path="backups/backupjobs/create"
         element={<BackupResourceCreatePageWithData resourceType="backupjobs" title="Backup Jobs" />}
+      />
+      <Route
+        path="backups/backupjobs/:name/edit"
+        element={<BackupResourceEditPage resourceType="backupjobs" title="Backup Jobs" />}
       />
       <Route
         path="backups/backups"
@@ -45,12 +54,20 @@ export function ConsolePage() {
         element={<BackupResourceCreatePageWithData resourceType="backups" title="Backups" />}
       />
       <Route
+        path="backups/backups/:name/edit"
+        element={<BackupResourceEditPage resourceType="backups" title="Backups" />}
+      />
+      <Route
         path="backups/restorejobs"
         element={<BackupResourceListPage resourceType="restorejobs" title="Restore Jobs" />}
       />
       <Route
         path="backups/restorejobs/create"
         element={<BackupRestoreJobCreatePage />}
+      />
+      <Route
+        path="backups/restorejobs/:name/edit"
+        element={<BackupResourceEditPage resourceType="restorejobs" title="Restore Jobs" />}
       />
       <Route path=":plural/:name/edit" element={<ApplicationEditRoute />} />
       <Route path=":plural/:name/*" element={<ApplicationDetailPage />} />

@@ -1,7 +1,7 @@
-import { Link } from "react-router"
-import { Archive, Plus } from "lucide-react"
+import { Link, useNavigate } from "react-router"
+import { Archive, Plus, Edit, Trash2 } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
-import { useK8sList } from "@cozystack/k8s-client"
+import { useK8sList, useK8sDelete } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { formatAge } from "../lib/status.ts"
 
@@ -29,15 +29,35 @@ interface BackupResourceListPageProps {
 
 export function BackupResourceListPage({ resourceType, title }: BackupResourceListPageProps) {
   const { tenantNamespace } = useTenantContext()
+  const navigate = useNavigate()
 
-  const { data, isLoading, error } = useK8sList<BackupResource>({
+  const { data, isLoading, error, refetch } = useK8sList<BackupResource>({
     apiGroup: "backups.cozystack.io",
     apiVersion: "v1alpha1",
     plural: resourceType,
     namespace: tenantNamespace ?? "",
   }, { enabled: !!tenantNamespace })
 
+  const deleteMutation = useK8sDelete({
+    apiGroup: "backups.cozystack.io",
+    apiVersion: "v1alpha1",
+    plural: resourceType,
+    namespace: tenantNamespace ?? "",
+  })
+
   const items = data?.items ?? []
+
+  const handleDelete = async (name: string) => {
+    const singularTitle = title.slice(0, -1) // Remove 's' from plural
+    if (!confirm(`Delete ${singularTitle} "${name}"? This cannot be undone.`)) return
+
+    try {
+      await deleteMutation.mutateAsync(name)
+      refetch()
+    } catch (err) {
+      alert(`Failed to delete: ${(err as Error).message}`)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -90,6 +110,7 @@ export function BackupResourceListPage({ resourceType, title }: BackupResourceLi
                   <th className="px-5 py-3">Namespace</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Age</th>
+                  <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,6 +151,25 @@ export function BackupResourceListPage({ resourceType, title }: BackupResourceLi
                         {item.metadata.creationTimestamp
                           ? formatAge(item.metadata.creationTimestamp)
                           : "-"}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            to={`/console/backups/${resourceType}/${item.metadata.name}/edit`}
+                          >
+                            <Button variant="outline" size="sm">
+                              <Edit className="size-3.5" /> Edit
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(item.metadata.name)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="size-3.5" /> Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )

@@ -5,7 +5,39 @@ import { Button, Section, Spinner } from "@cozystack/ui"
 import { useK8sCreate, useK8sList } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useApplicationDefinitions } from "../lib/app-definitions.ts"
+import { useCRDSchema } from "../lib/use-crd-schema.ts"
 import { SchemaForm } from "../components/SchemaForm.tsx"
+
+/**
+ * Recursively adds enum values to schema properties
+ */
+function enrichSchemaWithEnums(
+  schema: any,
+  path: string[],
+  enumMap: Record<string, string[]>
+): any {
+  if (!schema || typeof schema !== "object") return schema
+
+  const currentPath = path.join(".")
+  const result = { ...schema }
+
+  // Add enum if this path has enum values
+  if (enumMap[currentPath]) {
+    result.enum = enumMap[currentPath]
+  }
+
+  // Recurse into properties
+  if (result.properties) {
+    result.properties = Object.fromEntries(
+      Object.entries(result.properties).map(([key, value]) => [
+        key,
+        enrichSchemaWithEnums(value, [...path, key], enumMap),
+      ])
+    )
+  }
+
+  return result
+}
 
 export function BackupRestoreJobCreatePage() {
   const navigate = useNavigate()
@@ -13,6 +45,11 @@ export function BackupRestoreJobCreatePage() {
   const { data: appDefs } = useApplicationDefinitions()
   const [formData, setFormData] = useState<any>({})
   const [name, setName] = useState("")
+
+  // Get base schema from CRD
+  const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
+    "restorejobs.backups.cozystack.io"
+  )
 
   // Get Backups
   const { data: backupsData } = useK8sList<any>({
@@ -44,60 +81,30 @@ export function BackupRestoreJobCreatePage() {
   })
 
   const schema = useMemo(() => {
+    if (!baseSchema) return null
+
+    const base = JSON.parse(baseSchema)
     const backups = backupsData?.items.map((b: any) => b.metadata.name) ?? []
     const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
-    return JSON.stringify({
-      type: "object",
-      required: ["backupRef", "targetRef"],
-      properties: {
-        backupRef: {
-          type: "object",
-          title: "Backup Reference",
-          description: "Reference to the backup to restore from",
-          required: ["name"],
-          properties: {
-            name: {
-              type: "string",
-              title: "Backup Name",
-              description: backups.length > 0 ? "Select a backup" : "No backups available - create a backup first",
-              enum: backups.length > 0 ? backups : ["(no backups available)"],
-            },
-          },
-        },
-        targetRef: {
-          type: "object",
-          title: "Target Reference",
-          description: "Reference to the application to restore to",
-          required: ["kind", "name"],
-          properties: {
-            apiGroup: {
-              type: "string",
-              title: "API Group",
-              default: "apps.cozystack.io",
-            },
-            kind: {
-              type: "string",
-              title: "Kind",
-              description: "Type of resource",
-              enum: kinds.length > 0 ? kinds : ["Postgres", "MySQL", "Redis"],
-            },
-            name: {
-              type: "string",
-              title: "Name",
-              description: selectedKind
-                ? instances.length > 0
-                  ? "Select target instance to restore to"
-                  : "No instances found for this kind"
-                : "Select Kind first",
-              enum: selectedKind && instances.length > 0 ? instances : selectedKind ? ["(no instances available)"] : undefined,
-            },
-          },
-        },
-      },
-    })
-  }, [backupsData, appDefs, instancesData, selectedKind])
+    const enumMap: Record<string, string[]> = {}
+
+    // Add enum values for dropdowns
+    if (backups.length > 0) {
+      enumMap["backupRef.name"] = backups
+    }
+    if (kinds.length > 0) {
+      enumMap["targetRef.kind"] = kinds
+    }
+    if (selectedKind && instances.length > 0) {
+      enumMap["targetRef.name"] = instances
+    }
+
+    // Enrich schema with enum values
+    const enriched = enrichSchemaWithEnums(base, [], enumMap)
+    return JSON.stringify(enriched)
+  }, [baseSchema, backupsData, appDefs, instancesData, selectedKind])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -137,6 +144,22 @@ export function BackupRestoreJobCreatePage() {
 
   const handleCancel = () => {
     navigate("/console/backups/restorejobs")
+  }
+
+  if (schemaLoading) {
+    return (
+      <div className="flex items-center gap-2 p-8 text-slate-500">
+        <Spinner /> Loading schema...
+      </div>
+    )
+  }
+
+  if (!schema) {
+    return (
+      <div className="p-8 text-red-600">
+        Failed to load RestoreJob schema. Please refresh the page.
+      </div>
+    )
   }
 
   return (

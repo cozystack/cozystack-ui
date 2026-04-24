@@ -1,12 +1,44 @@
-import { useMemo, useState, useEffect } from "react"
+import { useMemo } from "react"
 import { useK8sList } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useApplicationDefinitions } from "../lib/app-definitions.ts"
+import { useCRDSchema } from "../lib/use-crd-schema.ts"
 import { BackupResourceCreatePage } from "./BackupResourceCreatePage.tsx"
 
 interface BackupResourceCreatePageWithDataProps {
   resourceType: "plans" | "backupjobs" | "backups" | "restorejobs"
   title: string
+}
+
+/**
+ * Recursively adds enum values to schema properties
+ */
+function enrichSchemaWithEnums(
+  schema: any,
+  path: string[],
+  enumMap: Record<string, string[]>
+): any {
+  if (!schema || typeof schema !== "object") return schema
+
+  const currentPath = path.join(".")
+  const result = { ...schema }
+
+  // Add enum if this path has enum values
+  if (enumMap[currentPath]) {
+    result.enum = enumMap[currentPath]
+  }
+
+  // Recurse into properties
+  if (result.properties) {
+    result.properties = Object.fromEntries(
+      Object.entries(result.properties).map(([key, value]) => [
+        key,
+        enrichSchemaWithEnums(value, [...path, key], enumMap),
+      ])
+    )
+  }
+
+  return result
 }
 
 export function BackupResourceCreatePageWithData({
@@ -15,6 +47,18 @@ export function BackupResourceCreatePageWithData({
 }: BackupResourceCreatePageWithDataProps) {
   const { tenantNamespace } = useTenantContext()
   const { data: appDefs } = useApplicationDefinitions()
+
+  // Map resourceType to CRD name
+  const crdNameMap = {
+    plans: "plans.backups.cozystack.io",
+    backupjobs: "backupjobs.backups.cozystack.io",
+    backups: "backups.backups.cozystack.io",
+    restorejobs: "restorejobs.backups.cozystack.io",
+  }
+
+  const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
+    crdNameMap[resourceType]
+  )
 
   // Get Plans
   const { data: plansData } = useK8sList<any>({
@@ -39,176 +83,74 @@ export function BackupResourceCreatePageWithData({
     plural: "backupclasses",
   }, { enabled: resourceType === "plans" })
 
-  const schema = useMemo(() => {
+  const enrichedSchema = useMemo(() => {
+    if (!baseSchema) return null
+
+    const base = JSON.parse(baseSchema)
+    const enumMap: Record<string, string[]> = {}
+
+    // Add enum values based on resource type
     if (resourceType === "plans") {
       const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
       const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
 
-      return JSON.stringify({
-        type: "object",
-        required: ["applicationRef", "backupClassName", "schedule"],
-        properties: {
-          applicationRef: {
-            type: "object",
-            title: "Application Reference",
-            description: "Reference to the application to backup",
-            required: ["kind", "name"],
-            properties: {
-              apiGroup: {
-                type: "string",
-                title: "API Group",
-                default: "apps.cozystack.io",
-              },
-              kind: {
-                type: "string",
-                title: "Kind",
-                description: "Type of resource",
-                enum: kinds.length > 0 ? kinds : ["Postgres", "MySQL", "Redis"],
-              },
-              name: {
-                type: "string",
-                title: "Name",
-                description: "Name of the resource instance",
-              },
-            },
-          },
-          backupClassName: {
-            type: "string",
-            title: "Backup Class Name",
-            description: "Name of the BackupClass to use",
-            enum: backupClasses.length > 0 ? backupClasses : ["default"],
-          },
-          schedule: {
-            type: "object",
-            title: "Schedule",
-            description: "Backup schedule configuration",
-            properties: {
-              type: {
-                type: "string",
-                title: "Type",
-                default: "cron",
-                enum: ["cron"],
-              },
-              cron: {
-                type: "string",
-                title: "Cron Expression",
-                description: "Cron schedule (e.g., '0 2 * * *' for daily at 2am)",
-                default: "0 2 * * *",
-              },
-            },
-          },
-        },
-      })
+      if (kinds.length > 0) {
+        enumMap["applicationRef.kind"] = kinds
+      }
+      if (backupClasses.length > 0) {
+        enumMap["backupClassName"] = backupClasses
+      }
     }
 
     if (resourceType === "backupjobs") {
       const plans = plansData?.items.map((p: any) => p.metadata.name) ?? []
-
-      return JSON.stringify({
-        type: "object",
-        required: ["planRef"],
-        properties: {
-          planRef: {
-            type: "object",
-            title: "Plan Reference",
-            description: "Reference to the backup plan",
-            required: ["name"],
-            properties: {
-              name: {
-                type: "string",
-                title: "Plan Name",
-                description: plans.length > 0 ? "Select a plan" : "No plans available - create a plan first",
-                enum: plans.length > 0 ? plans : ["(no plans available)"],
-              },
-            },
-          },
-        },
-      })
+      if (plans.length > 0) {
+        enumMap["planRef.name"] = plans
+      }
     }
 
     if (resourceType === "backups") {
-      const plans = plansData?.items.map((p: any) => p.metadata.name) ?? []
+      const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
+      const strategies = [] // TODO: Get from BackupStrategy resources if needed
 
-      return JSON.stringify({
-        type: "object",
-        required: ["planRef"],
-        properties: {
-          planRef: {
-            type: "object",
-            title: "Plan Reference",
-            description: "Reference to the backup plan",
-            required: ["name"],
-            properties: {
-              name: {
-                type: "string",
-                title: "Plan Name",
-                description: plans.length > 0 ? "Select a plan" : "No plans available - create a plan first",
-                enum: plans.length > 0 ? plans : ["(no plans available)"],
-              },
-            },
-          },
-        },
-      })
+      if (kinds.length > 0) {
+        enumMap["applicationRef.kind"] = kinds
+      }
+      if (strategies.length > 0) {
+        enumMap["strategyRef.name"] = strategies
+      }
     }
 
     if (resourceType === "restorejobs") {
       const backups = backupsData?.items.map((b: any) => b.metadata.name) ?? []
       const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
 
-      return JSON.stringify({
-        type: "object",
-        required: ["backupRef", "targetRef"],
-        properties: {
-          backupRef: {
-            type: "object",
-            title: "Backup Reference",
-            description: "Reference to the backup to restore from",
-            required: ["name"],
-            properties: {
-              name: {
-                type: "string",
-                title: "Backup Name",
-                description: backups.length > 0 ? "Select a backup" : "No backups available - create a backup first",
-                enum: backups.length > 0 ? backups : ["(no backups available)"],
-              },
-            },
-          },
-          targetRef: {
-            type: "object",
-            title: "Target Reference",
-            description: "Reference to the application to restore to",
-            required: ["kind", "name"],
-            properties: {
-              apiGroup: {
-                type: "string",
-                title: "API Group",
-                default: "apps.cozystack.io",
-              },
-              kind: {
-                type: "string",
-                title: "Kind",
-                description: "Type of resource",
-                enum: kinds.length > 0 ? kinds : ["Postgres", "MySQL", "Redis"],
-              },
-              name: {
-                type: "string",
-                title: "Name",
-                description: "Name of the resource instance",
-              },
-            },
-          },
-        },
-      })
+      if (backups.length > 0) {
+        enumMap["backupRef.name"] = backups
+      }
+      if (kinds.length > 0) {
+        enumMap["targetRef.kind"] = kinds
+      }
     }
 
-    return "{}"
-  }, [resourceType, appDefs, plansData, backupsData, backupClassesData])
+    // Enrich schema with enum values
+    const enriched = enrichSchemaWithEnums(base, [], enumMap)
+    return JSON.stringify(enriched)
+  }, [baseSchema, resourceType, appDefs, plansData, backupsData, backupClassesData])
+
+  if (schemaLoading) {
+    return (
+      <div className="flex items-center gap-2 p-8 text-slate-500">
+        Loading schema...
+      </div>
+    )
+  }
 
   return (
     <BackupResourceCreatePage
       resourceType={resourceType}
       title={title}
-      schema={schema}
+      overrideSchema={enrichedSchema || undefined}
     />
   )
 }

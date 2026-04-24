@@ -1,11 +1,43 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router"
 import { Archive, Save } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
 import { useK8sCreate, useK8sList } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useApplicationDefinitions } from "../lib/app-definitions.ts"
+import { useCRDSchema } from "../lib/use-crd-schema.ts"
 import { SchemaForm } from "../components/SchemaForm.tsx"
+
+/**
+ * Recursively adds enum values to schema properties
+ */
+function enrichSchemaWithEnums(
+  schema: any,
+  path: string[],
+  enumMap: Record<string, string[]>
+): any {
+  if (!schema || typeof schema !== "object") return schema
+
+  const currentPath = path.join(".")
+  const result = { ...schema }
+
+  // Add enum if this path has enum values
+  if (enumMap[currentPath]) {
+    result.enum = enumMap[currentPath]
+  }
+
+  // Recurse into properties
+  if (result.properties) {
+    result.properties = Object.fromEntries(
+      Object.entries(result.properties).map(([key, value]) => [
+        key,
+        enrichSchemaWithEnums(value, [...path, key], enumMap),
+      ])
+    )
+  }
+
+  return result
+}
 
 export function BackupPlanCreatePage() {
   const navigate = useNavigate()
@@ -13,6 +45,11 @@ export function BackupPlanCreatePage() {
   const { data: appDefs } = useApplicationDefinitions()
   const [formData, setFormData] = useState<any>({})
   const [name, setName] = useState("")
+
+  // Get base schema from CRD
+  const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
+    "plans.backups.cozystack.io"
+  )
 
   // Get BackupClasses
   const { data: backupClassesData } = useK8sList<any>({
@@ -43,71 +80,30 @@ export function BackupPlanCreatePage() {
   })
 
   const schema = useMemo(() => {
+    if (!baseSchema) return null
+
+    const base = JSON.parse(baseSchema)
     const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
     const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
-    return JSON.stringify({
-      type: "object",
-      required: ["applicationRef", "backupClassName", "schedule"],
-      properties: {
-        applicationRef: {
-          type: "object",
-          title: "Application Reference",
-          description: "Reference to the application to backup",
-          required: ["kind", "name"],
-          properties: {
-            apiGroup: {
-              type: "string",
-              title: "API Group",
-              default: "apps.cozystack.io",
-            },
-            kind: {
-              type: "string",
-              title: "Kind",
-              description: "Type of resource",
-              enum: kinds.length > 0 ? kinds : ["Postgres", "MySQL", "Redis"],
-            },
-            name: {
-              type: "string",
-              title: "Name",
-              description: selectedKind
-                ? instances.length > 0
-                  ? "Select instance to backup"
-                  : "No instances found for this kind"
-                : "Select Kind first",
-              enum: selectedKind && instances.length > 0 ? instances : selectedKind ? ["(no instances available)"] : undefined,
-            },
-          },
-        },
-        backupClassName: {
-          type: "string",
-          title: "Backup Class Name",
-          description: backupClasses.length > 0 ? "Select backup class" : "No backup classes available - create one first",
-          enum: backupClasses.length > 0 ? backupClasses : ["(no backup classes available)"],
-        },
-        schedule: {
-          type: "object",
-          title: "Schedule",
-          description: "Backup schedule configuration",
-          properties: {
-            type: {
-              type: "string",
-              title: "Type",
-              default: "cron",
-              enum: ["cron"],
-            },
-            cron: {
-              type: "string",
-              title: "Cron Expression",
-              description: "Cron schedule (e.g., '0 2 * * *' for daily at 2am)",
-              default: "0 2 * * *",
-            },
-          },
-        },
-      },
-    })
-  }, [appDefs, backupClassesData, instancesData, selectedKind])
+    const enumMap: Record<string, string[]> = {}
+
+    // Add enum values for dropdowns
+    if (kinds.length > 0) {
+      enumMap["applicationRef.kind"] = kinds
+    }
+    if (selectedKind && instances.length > 0) {
+      enumMap["applicationRef.name"] = instances
+    }
+    if (backupClasses.length > 0) {
+      enumMap["backupClassName"] = backupClasses
+    }
+
+    // Enrich schema with enum values
+    const enriched = enrichSchemaWithEnums(base, [], enumMap)
+    return JSON.stringify(enriched)
+  }, [baseSchema, appDefs, backupClassesData, instancesData, selectedKind])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -147,6 +143,22 @@ export function BackupPlanCreatePage() {
 
   const handleCancel = () => {
     navigate("/console/backups/plans")
+  }
+
+  if (schemaLoading) {
+    return (
+      <div className="flex items-center gap-2 p-8 text-slate-500">
+        <Spinner /> Loading schema...
+      </div>
+    )
+  }
+
+  if (!schema) {
+    return (
+      <div className="p-8 text-red-600">
+        Failed to load Plan schema. Please refresh the page.
+      </div>
+    )
   }
 
   return (
