@@ -1,9 +1,10 @@
 import { useMemo } from "react"
 import Form from "@rjsf/core"
 import validator from "@rjsf/validator-ajv8"
-import type { RJSFSchema, UiSchema } from "@rjsf/utils"
+import type { RJSFSchema, UiSchema, TemplatesType } from "@rjsf/utils"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
 import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
+import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
 import "./schema-form.css"
 
 /**
@@ -27,6 +28,44 @@ function addStorageClassWidgets(schema: RJSFSchema, uiSchema: UiSchema = {}): Ui
     } else if (typeof value === "object" && (value as any).properties) {
       // Recursively process nested objects
       result[key] = addStorageClassWidgets(value as RJSFSchema, result[key] as UiSchema)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Recursively find all fields with additionalProperties schema and add widget
+ */
+function addAdditionalPropertiesWidgets(schema: RJSFSchema, uiSchema: UiSchema = {}): UiSchema {
+  if (!schema || typeof schema !== "object") return uiSchema
+
+  const properties = (schema as any).properties
+  if (!properties || typeof properties !== "object") return uiSchema
+
+  const result = { ...uiSchema }
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (typeof value === "object" && value !== null) {
+      const fieldSchema = value as any
+      // Check if this field has additionalProperties with a schema
+      const hasAdditionalPropertiesSchema =
+        fieldSchema.type === "object" &&
+        (!fieldSchema.properties || Object.keys(fieldSchema.properties).length === 0) &&
+        typeof fieldSchema.additionalProperties === "object" &&
+        fieldSchema.additionalProperties !== null &&
+        fieldSchema.additionalProperties !== true
+
+      if (hasAdditionalPropertiesSchema) {
+        // Found a field with additionalProperties schema - use custom field
+        result[key] = {
+          ...result[key],
+          "ui:field": "AdditionalPropertiesField",
+        }
+      } else if (fieldSchema.properties) {
+        // Recursively process nested objects
+        result[key] = addAdditionalPropertiesWidgets(fieldSchema, result[key] as UiSchema)
+      }
     }
   }
 
@@ -57,7 +96,7 @@ export function SchemaForm({
   }, [openAPISchema])
 
   const uiSchema = useMemo<UiSchema>(() => {
-    const baseUiSchema = {
+    const baseUiSchema: UiSchema = {
       "ui:submitButtonOptions": { norender: true },
       ...keysOrderToUiSchema(keysOrder),
       // Use SourceWidget for mutually exclusive source fields
@@ -67,8 +106,29 @@ export function SchemaForm({
     }
 
     // Automatically add StorageClassWidget for all storageClass fields
-    return addStorageClassWidgets(schema, baseUiSchema)
+    const withStorageClass = addStorageClassWidgets(schema, baseUiSchema)
+
+    // Automatically add AdditionalPropertiesField for fields with additionalProperties schema
+    return addAdditionalPropertiesWidgets(schema, withStorageClass)
   }, [keysOrder, schema])
+
+  const customFields = useMemo(
+    () => ({
+      AdditionalPropertiesField: AdditionalPropertiesField,
+    }),
+    []
+  )
+
+  // Create templates without submit button
+  const templatesWithoutSubmit = useMemo<Partial<TemplatesType>>(() => {
+    return {
+      ...customTemplates,
+      ButtonTemplates: {
+        ...customTemplates.ButtonTemplates,
+        SubmitButton: () => null,
+      },
+    }
+  }, [])
 
   return (
     <div className="rjsf-container">
@@ -77,8 +137,9 @@ export function SchemaForm({
         uiSchema={uiSchema}
         formData={formData}
         validator={validator}
-        templates={customTemplates}
+        templates={templatesWithoutSubmit}
         widgets={customWidgets}
+        fields={customFields}
         onChange={(e) => onChange(e.formData)}
         liveValidate={false}
         showErrorList={false}

@@ -179,8 +179,6 @@ export function SecretsTab({
 }) {
   const appKind = ad.spec?.application.kind
   const isTenant = appKind === "Tenant"
-  // Info and other tenant-scoped apps use tenantresource=true
-  const isTenantResource = appKind === "Info"
 
   // For Tenant, use tenant namespace from status and TenantSecret API
   // For other apps, use regular secrets with application labels
@@ -198,10 +196,7 @@ export function SecretsTab({
 
   const labelSelector = isTenant
     ? undefined // For Tenant, show all secrets in tenant namespace
-    : [
-        appInstanceLabel(ad, instance),
-        `internal.cozystack.io/tenantresource=${isTenantResource ? "true" : "false"}`,
-      ].join(",")
+    : appInstanceLabel(ad, instance)
 
   const { data, isLoading } = useK8sList<K8sResource & SecretLike>(
     { ...apiRef, namespace: ns },

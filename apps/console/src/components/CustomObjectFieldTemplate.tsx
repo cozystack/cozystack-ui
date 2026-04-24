@@ -5,26 +5,21 @@ import type {
   FormContextType,
 } from "@rjsf/utils"
 import { KeyValueEditor } from "./KeyValueEditor.tsx"
-import { MutuallyExclusiveField } from "./MutuallyExclusiveField.tsx"
 
 export function CustomObjectFieldTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
   F extends FormContextType = any,
 >(props: ObjectFieldTemplateProps<T, S, F>) {
-  const { schema, formData, onChange, readonly, disabled, uiSchema } = props
+  const { schema, formData, onChange, readonly, disabled } = props
 
   // Check if this is a free-form key-value object
-  // Must have x-kubernetes-preserve-unknown-fields OR additionalProperties (true or schema object)
-  // This excludes empty marker objects (like upload: {}) which have no properties and no additionalProperties
-  const hasExplicitAdditionalProps =
-    (schema as any)["x-kubernetes-preserve-unknown-fields"] === true ||
-    schema.additionalProperties === true ||
-    (typeof schema.additionalProperties === "object" && schema.additionalProperties !== null)
-
+  // ONLY use KeyValueEditor for truly free-form objects where both keys and values are arbitrary
+  // This means x-kubernetes-preserve-unknown-fields OR additionalProperties: true (boolean, not a schema object)
   const isFreeFormObject =
     (!schema.properties || Object.keys(schema.properties).length === 0) &&
-    hasExplicitAdditionalProps
+    ((schema as any)["x-kubernetes-preserve-unknown-fields"] === true ||
+      schema.additionalProperties === true)
 
   // If it's a free-form key-value object, use our custom editor
   if (isFreeFormObject) {

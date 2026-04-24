@@ -2,6 +2,7 @@ import type {
   IconButtonProps,
   TemplatesType,
   WidgetsType,
+  FieldTemplateProps,
   FormContextType,
   RJSFSchema,
   StrictRJSFSchema,
@@ -9,6 +10,8 @@ import type {
 import { CustomObjectFieldTemplate } from "./CustomObjectFieldTemplate.tsx"
 import { SourceWidget } from "./SourceWidget.tsx"
 import { StorageClassWidget } from "./StorageClassWidget.tsx"
+import { AdditionalPropertiesWidget } from "./AdditionalPropertiesWidget.tsx"
+import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
 
 function IconButton<
   T = any,
@@ -57,4 +60,5 @@ export const customTemplates: Partial<TemplatesType> = {
 export const customWidgets: Partial<WidgetsType> = {
   SourceWidget: SourceWidget,
   StorageClassWidget: StorageClassWidget,
+  AdditionalPropertiesWidget: AdditionalPropertiesWidget,
 }
