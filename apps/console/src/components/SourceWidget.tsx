@@ -36,11 +36,21 @@ export function SourceWidget(props: WidgetProps) {
     const prop = properties[option] as any
     if (!prop || typeof prop !== "object") return null
 
-    // If it's an empty object marker (like upload: {}), show nothing
+    // If it's an empty object marker (like upload: {}), show confirmation message
     if (Object.keys(prop.properties || {}).length === 0) {
       return (
-        <div className="ml-6 text-xs text-slate-500 italic">
-          {prop.description || "No additional configuration needed"}
+        <div className="ml-6 mt-2 rounded-md bg-blue-50 border border-blue-200 p-3">
+          <p className="text-sm text-blue-900 font-medium">
+            ✓ {option} selected
+          </p>
+          <p className="text-xs text-blue-700 mt-1">
+            {prop.description || "No additional configuration needed"}
+          </p>
+          {option === "upload" && (
+            <p className="text-xs text-blue-600 mt-2">
+              After creating the disk, you can upload an image using the UI or virtctl command.
+            </p>
+          )}
         </div>
       )
     }
