@@ -53,7 +53,10 @@ export function ApplicationDetailPage() {
       name: name ?? "",
       namespace: tenantNamespace ?? "",
     },
-    { enabled: !!plural && !!name && !!tenantNamespace },
+    {
+      enabled: !!plural && !!name && !!tenantNamespace,
+      refetchInterval: 5000, // Auto-refresh every 5 seconds
+    },
   )
 
   const del = useK8sDelete({
