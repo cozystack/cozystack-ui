@@ -13,6 +13,7 @@ import { BackupResourceEditPage } from "./BackupResourceEditPage.tsx"
 import { BackupPlanCreatePage } from "./BackupPlanCreatePage.tsx"
 import { BackupCreatePage } from "./BackupCreatePage.tsx"
 import { BackupRestoreJobCreatePage } from "./BackupRestoreJobCreatePage.tsx"
+import { ApplicationOrderPage } from "./ApplicationOrderPage.tsx"
 
 export function ConsolePage() {
   return (
@@ -70,6 +71,7 @@ export function ConsolePage() {
         path="backups/restorejobs/:name/edit"
         element={<BackupResourceEditPage resourceType="restorejobs" title="Restore Jobs" />}
       />
+      <Route path="new/:appName" element={<ApplicationOrderPage />} />
       <Route path=":plural/:name/edit" element={<ApplicationEditRoute />} />
       <Route path=":plural/:name/*" element={<ApplicationDetailPage />} />
       <Route path=":plural" element={<ApplicationListPage />} />
