@@ -80,5 +80,11 @@ export function sanitizeSchema(schema: any): any {
     out.type = "object"
     out.additionalProperties = true
   }
+
+  // Replace "Chart Values" title with "Parameters"
+  if (out.title === "Chart Values") {
+    out.title = "Parameters"
+  }
+
   return out
 }
