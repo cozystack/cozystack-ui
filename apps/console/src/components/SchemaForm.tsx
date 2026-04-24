@@ -5,6 +5,7 @@ import type { RJSFSchema, UiSchema, TemplatesType } from "@rjsf/utils"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
 import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
 import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
+import { SourceField } from "./SourceField.tsx"
 import "./schema-form.css"
 
 /**
@@ -99,9 +100,9 @@ export function SchemaForm({
     const baseUiSchema: UiSchema = {
       "ui:submitButtonOptions": { norender: true },
       ...keysOrderToUiSchema(keysOrder),
-      // Use SourceWidget for mutually exclusive source fields
+      // Use SourceField for mutually exclusive source fields
       source: {
-        "ui:widget": "SourceWidget",
+        "ui:field": "SourceField",
       },
     }
 
@@ -115,6 +116,7 @@ export function SchemaForm({
   const customFields = useMemo(
     () => ({
       AdditionalPropertiesField: AdditionalPropertiesField,
+      SourceField: SourceField,
     }),
     []
   )
