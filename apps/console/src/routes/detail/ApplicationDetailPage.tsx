@@ -86,7 +86,7 @@ export function ApplicationDetailPage() {
     if (!confirm(`Delete ${appDisplayName(ad)} "${name}"? This cannot be undone.`)) return
     try {
       await del.mutateAsync(name)
-      navigate("/console")
+      navigate(`/console/${plural}`)
     } catch (err) {
       alert((err as Error).message)
     }
