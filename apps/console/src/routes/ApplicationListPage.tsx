@@ -62,7 +62,7 @@ export function ApplicationListPage() {
             </p>
           </div>
         </div>
-        <Link to={`/console/marketplace/${ad.metadata.name}`}>
+        <Link to={`/console/${ad.metadata.name}`}>
           <Button variant="primary" size="sm">
             <Plus className="size-3.5" /> Deploy {humanizeKind(kind)}
           </Button>
@@ -77,7 +77,7 @@ export function ApplicationListPage() {
         <Section>
           <div className="py-8 text-center">
             <p className="text-sm text-slate-500">No {pluralLabel.toLowerCase()} yet.</p>
-            <Link to={`/console/marketplace/${ad.metadata.name}`} className="mt-3 inline-flex">
+            <Link to={`/console/${ad.metadata.name}`} className="mt-3 inline-flex">
               <Button variant="primary" size="sm">
                 <Plus className="size-3.5" /> Deploy the first one
               </Button>
