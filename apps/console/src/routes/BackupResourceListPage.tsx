@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router"
+import { Link } from "react-router"
 import { Archive, Plus, Edit, Trash2 } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
 import { useK8sList, useK8sDelete } from "@cozystack/k8s-client"
@@ -6,6 +6,8 @@ import { useTenantContext } from "../lib/tenant-context.tsx"
 import { formatAge } from "../lib/status.ts"
 
 interface BackupResource {
+  apiVersion: string
+  kind: string
   metadata: {
     name: string
     namespace?: string

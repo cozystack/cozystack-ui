@@ -56,7 +56,7 @@ export function BackupResourceCreatePage({
       kind: title.slice(0, -1), // Remove 's' from plural title
       metadata: {
         name: name.trim(),
-        namespace: tenantNamespace,
+        namespace: tenantNamespace ?? undefined,
       },
       spec: formData,
     }

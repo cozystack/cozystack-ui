@@ -66,8 +66,8 @@ export function BackupPlanCreatePage() {
   )
 
   const { data: instancesData } = useK8sList<any>({
-    apiGroup: selectedAppDef?.spec?.application.group ?? "apps.cozystack.io",
-    apiVersion: selectedAppDef?.spec?.application.version ?? "v1alpha1",
+    apiGroup: "apps.cozystack.io",
+    apiVersion: "v1alpha1",
     plural: selectedAppDef?.spec?.application.plural ?? "",
     namespace: tenantNamespace ?? "",
   }, { enabled: !!selectedAppDef && !!tenantNamespace })
@@ -83,7 +83,7 @@ export function BackupPlanCreatePage() {
     if (!baseSchema) return null
 
     const base = JSON.parse(baseSchema)
-    const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
+    const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
     const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
@@ -134,7 +134,7 @@ export function BackupPlanCreatePage() {
       kind: "Plan",
       metadata: {
         name: name.trim(),
-        namespace: tenantNamespace,
+        namespace: tenantNamespace ?? undefined,
       },
       spec: formData,
     }

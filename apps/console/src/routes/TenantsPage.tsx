@@ -8,6 +8,8 @@ import { useTenantContext } from "../lib/tenant-context.tsx"
 import { formatAge } from "../lib/status.ts"
 
 interface TenantModule {
+  apiVersion: string
+  kind: string
   metadata: {
     name: string
     namespace: string

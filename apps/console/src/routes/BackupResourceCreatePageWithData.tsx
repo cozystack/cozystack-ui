@@ -91,7 +91,7 @@ export function BackupResourceCreatePageWithData({
 
     // Add enum values based on resource type
     if (resourceType === "plans") {
-      const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
+      const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
       const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
 
       if (kinds.length > 0) {
@@ -110,8 +110,8 @@ export function BackupResourceCreatePageWithData({
     }
 
     if (resourceType === "backups") {
-      const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
-      const strategies = [] // TODO: Get from BackupStrategy resources if needed
+      const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
+      const strategies: string[] = [] // TODO: Get from BackupStrategy resources if needed
 
       if (kinds.length > 0) {
         enumMap["applicationRef.kind"] = kinds
@@ -123,7 +123,7 @@ export function BackupResourceCreatePageWithData({
 
     if (resourceType === "restorejobs") {
       const backups = backupsData?.items.map((b: any) => b.metadata.name) ?? []
-      const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
+      const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
 
       if (backups.length > 0) {
         enumMap["backupRef.name"] = backups

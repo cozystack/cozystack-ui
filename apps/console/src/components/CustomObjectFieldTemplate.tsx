@@ -4,42 +4,13 @@ import type {
   StrictRJSFSchema,
   FormContextType,
 } from "@rjsf/utils"
-import { KeyValueEditor } from "./KeyValueEditor.tsx"
 
 export function CustomObjectFieldTemplate<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
   F extends FormContextType = any,
 >(props: ObjectFieldTemplateProps<T, S, F>) {
-  const { schema, formData, onChange, readonly, disabled } = props
-
-  // Check if this is a free-form key-value object
-  // ONLY use KeyValueEditor for truly free-form objects where both keys and values are arbitrary
-  // This means x-kubernetes-preserve-unknown-fields OR additionalProperties: true (boolean, not a schema object)
-  const isFreeFormObject =
-    (!schema.properties || Object.keys(schema.properties).length === 0) &&
-    ((schema as any)["x-kubernetes-preserve-unknown-fields"] === true ||
-      schema.additionalProperties === true)
-
-  // If it's a free-form key-value object, use our custom editor
-  if (isFreeFormObject) {
-    return (
-      <div className="field">
-        {props.title && (
-          <label className="control-label">
-            {props.title}
-            {props.required && <span className="required">*</span>}
-          </label>
-        )}
-        {props.description && <p className="field-description">{props.description}</p>}
-        <KeyValueEditor
-          value={formData || {}}
-          onChange={onChange}
-          readonly={readonly || disabled}
-        />
-      </div>
-    )
-  }
+  const { formData } = props
 
   // Check if this is an addon object (has 'enabled' field and other config fields)
   const hasEnabledField = props.properties.some((p) => p.name === "enabled")
@@ -48,7 +19,7 @@ export function CustomObjectFieldTemplate<
 
   // If this is an addon, use conditional rendering based on 'enabled' state
   if (isAddon) {
-    const isEnabled = formData?.enabled === true
+    const isEnabled = (formData as any)?.enabled === true
     const enabledProp = props.properties.find((p) => p.name === "enabled")
     const otherProps = props.properties.filter((p) => p.name !== "enabled")
 

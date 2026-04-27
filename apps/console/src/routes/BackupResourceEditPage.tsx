@@ -73,7 +73,7 @@ export function BackupResourceEditPage({
     }
 
     try {
-      await updateMutation.mutateAsync({ name: name!, resource: updated })
+      await updateMutation.mutateAsync(updated)
       navigate(`/console/backups/${resourceType}`)
     } catch (err) {
       alert(`Failed to update ${title.slice(0, -1)}: ${(err as Error).message}`)

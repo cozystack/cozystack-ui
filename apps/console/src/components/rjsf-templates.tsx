@@ -36,16 +36,16 @@ const buttonClassName =
 const removeButtonClassName =
   "rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
 
-export const customTemplates: Partial<TemplatesType> = {
+export const customTemplates = {
   ObjectFieldTemplate: CustomObjectFieldTemplate,
   ButtonTemplates: {
-    AddButton: (props) => (
+    AddButton: (props: IconButtonProps) => (
       <IconButton {...props} icon="+ Add" className={buttonClassName} />
     ),
-    RemoveButton: (props) => (
+    RemoveButton: (props: IconButtonProps) => (
       <IconButton {...props} icon="× Remove" className={removeButtonClassName} />
     ),
-    CopyButton: (props) => (
+    CopyButton: (props: IconButtonProps) => (
       <IconButton {...props} icon="Copy" className={buttonClassName} />
     ),
     MoveUpButton: () => null,
@@ -54,7 +54,7 @@ export const customTemplates: Partial<TemplatesType> = {
       <IconButton {...props} icon="Submit" className={buttonClassName} />
     ),
   },
-}
+} as const satisfies Partial<TemplatesType>
 
 export const customWidgets = {
   SourceWidget: SourceWidget,

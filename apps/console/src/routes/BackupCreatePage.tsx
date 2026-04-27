@@ -59,8 +59,8 @@ export function BackupCreatePage() {
   )
 
   const { data: instancesData } = useK8sList<any>({
-    apiGroup: selectedAppDef?.spec?.application.group ?? "apps.cozystack.io",
-    apiVersion: selectedAppDef?.spec?.application.version ?? "v1alpha1",
+    apiGroup: "apps.cozystack.io",
+    apiVersion: "v1alpha1",
     plural: selectedAppDef?.spec?.application.plural ?? "",
     namespace: tenantNamespace ?? "",
   }, { enabled: !!selectedAppDef && !!tenantNamespace })
@@ -76,7 +76,7 @@ export function BackupCreatePage() {
     if (!baseSchema) return null
 
     const base = JSON.parse(baseSchema)
-    const kinds = appDefs?.items.map(d => d.spec?.application.kind).filter(Boolean) ?? []
+    const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
     const enumMap: Record<string, string[]> = {}
@@ -131,7 +131,7 @@ export function BackupCreatePage() {
       kind: "Backup",
       metadata: {
         name: name.trim(),
-        namespace: tenantNamespace,
+        namespace: tenantNamespace ?? undefined,
       },
       spec: formData,
     }

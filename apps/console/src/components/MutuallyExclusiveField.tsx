@@ -11,8 +11,7 @@ interface MutuallyExclusiveFieldProps {
 }
 
 export function MutuallyExclusiveField(props: MutuallyExclusiveFieldProps) {
-  const { schema, formData, onChange, title, description, required } = props
-  const handleChange = onChange
+  const { schema, formData, handleChange, title, description, required } = props
   const properties = schema.properties || {}
   const options = Object.keys(properties)
 
