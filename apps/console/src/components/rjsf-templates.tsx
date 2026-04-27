@@ -1,17 +1,15 @@
 import type {
   IconButtonProps,
   TemplatesType,
-  WidgetsType,
-  FieldTemplateProps,
   FormContextType,
   RJSFSchema,
   StrictRJSFSchema,
+  SubmitButtonProps,
 } from "@rjsf/utils"
 import { CustomObjectFieldTemplate } from "./CustomObjectFieldTemplate.tsx"
 import { SourceWidget } from "./SourceWidget.tsx"
 import { StorageClassWidget } from "./StorageClassWidget.tsx"
 import { AdditionalPropertiesWidget } from "./AdditionalPropertiesWidget.tsx"
-import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
 import { VMDiskWidget } from "./VMDiskWidget.tsx"
 import { BackupClassWidget } from "./BackupClassWidget.tsx"
 
@@ -47,15 +45,18 @@ export const customTemplates: Partial<TemplatesType> = {
     RemoveButton: (props) => (
       <IconButton {...props} icon="× Remove" className={removeButtonClassName} />
     ),
+    CopyButton: (props) => (
+      <IconButton {...props} icon="Copy" className={buttonClassName} />
+    ),
     MoveUpButton: () => null,
     MoveDownButton: () => null,
-    SubmitButton: (props) => (
+    SubmitButton: (props: SubmitButtonProps) => (
       <IconButton {...props} icon="Submit" className={buttonClassName} />
     ),
   },
 }
 
-export const customWidgets: Partial<WidgetsType> = {
+export const customWidgets = {
   SourceWidget: SourceWidget,
   StorageClassWidget: StorageClassWidget,
   AdditionalPropertiesWidget: AdditionalPropertiesWidget,

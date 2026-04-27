@@ -29,7 +29,6 @@ interface BackupResourceListPageProps {
 
 export function BackupResourceListPage({ resourceType, title }: BackupResourceListPageProps) {
   const { tenantNamespace } = useTenantContext()
-  const navigate = useNavigate()
 
   const { data, isLoading, error, refetch } = useK8sList<BackupResource>({
     apiGroup: "backups.cozystack.io",

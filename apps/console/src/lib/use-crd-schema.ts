@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query"
 import { useK8sGet } from "@cozystack/k8s-client"
 
 interface CRDVersion {
