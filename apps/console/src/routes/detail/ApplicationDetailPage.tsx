@@ -31,6 +31,7 @@ import { WorkloadsTab } from "./WorkloadsTab.tsx"
 import { ServicesTab } from "./ServicesTab.tsx"
 import { IngressesTab } from "./IngressesTab.tsx"
 import { SecretsTab } from "./SecretsTab.tsx"
+import { EventsTab } from "./EventsTab.tsx"
 import { VncTab } from "./VncTab.tsx"
 
 export function ApplicationDetailPage() {
@@ -104,11 +105,13 @@ export function ApplicationDetailPage() {
   // Different tab sets for different resource types
   if (kind === "VMDisk") {
     // VMDisk: storage-only resource, no workloads/services/ingresses/secrets
+    tabs.push({ to: `${base}/events`, label: "Events" })
   } else if (kind === "VMInstance") {
     // VMInstance: VM-specific tabs (no ingresses/secrets)
     tabs.push(
       { to: `${base}/workloads`, label: "Workloads" },
       { to: `${base}/services`, label: "Services" },
+      { to: `${base}/events`, label: "Events" },
       { to: `${base}/vnc`, label: "VNC" },
     )
   } else {
@@ -118,6 +121,7 @@ export function ApplicationDetailPage() {
       { to: `${base}/services`, label: "Services" },
       { to: `${base}/ingresses`, label: "Ingresses" },
       { to: `${base}/secrets`, label: "Secrets" },
+      { to: `${base}/events`, label: "Events" },
     )
   }
 
@@ -187,6 +191,10 @@ export function ApplicationDetailPage() {
           <Route
             path="secrets"
             element={<SecretsTab ad={ad} instance={instance} />}
+          />
+          <Route
+            path="events"
+            element={<EventsTab ad={ad} instance={instance} />}
           />
           <Route path="vnc" element={<VncTab ad={ad} instance={instance} />} />
         </Routes>
