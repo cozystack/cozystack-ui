@@ -8,6 +8,8 @@ import {
   useConsoleSidebarSections,
   useMarketplaceSidebarSections,
 } from "./routes/sidebar-sections.tsx"
+import { CommandPaletteProvider, useCommandPalette } from "./components/command-palette/command-palette-provider.tsx"
+import { CommandPalette } from "./components/command-palette/command-palette.tsx"
 
 function Shell() {
   const { pathname } = useLocation()
@@ -15,8 +17,11 @@ function Shell() {
   const marketplaceSections = useMarketplaceSidebarSections()
   const consoleSections = useConsoleSidebarSections()
   const sections = inMarketplace ? marketplaceSections : consoleSections
+  const { toggle } = useCommandPalette()
+
   return (
-    <AppShell sections={sections} subtitle={<Breadcrumb />}>
+    <AppShell sections={sections} subtitle={<Breadcrumb />} onSearchClick={toggle}>
+      <CommandPalette />
       <Routes>
         <Route path="/" element={<Navigate to="/marketplace" replace />} />
         <Route path="/marketplace/*" element={<MarketplacePage />} />
@@ -29,7 +34,9 @@ function Shell() {
 export default function App() {
   return (
     <TenantProvider>
-      <Shell />
+      <CommandPaletteProvider>
+        <Shell />
+      </CommandPaletteProvider>
     </TenantProvider>
   )
 }

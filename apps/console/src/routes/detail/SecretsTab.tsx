@@ -9,6 +9,7 @@ import { Section, Spinner } from "@cozystack/ui"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
 import { appInstanceLabel } from "../../lib/labels.ts"
 import { formatAge } from "../../lib/status.ts"
+import { TENANT_NAMESPACE_PREFIX } from "../../lib/constants.ts"
 
 const SECRETS_REF = {
   apiGroup: "",
@@ -178,15 +179,14 @@ export function SecretsTab({
   instance: ApplicationInstance
 }) {
   const appKind = ad.spec?.application.kind
-  const isTenant = appKind === "Tenant"
-
-  // For Tenant, use tenant namespace from status and TenantSecret API
-  // For other apps, use regular secrets with application labels
-  const ns = isTenant
+  const ns = appKind === "Tenant"
     ? (instance.status as any)?.namespace ?? instance.metadata.namespace ?? ""
     : instance.metadata.namespace ?? ""
 
-  const apiRef = isTenant
+  // Use TenantSecrets API for all applications in tenant namespaces
+  const isInTenantNamespace = ns.startsWith(TENANT_NAMESPACE_PREFIX)
+
+  const apiRef = isInTenantNamespace
     ? {
         apiGroup: "core.cozystack.io",
         apiVersion: "v1alpha1",
@@ -194,9 +194,9 @@ export function SecretsTab({
       }
     : SECRETS_REF
 
-  const labelSelector = isTenant
-    ? undefined // For Tenant, show all secrets in tenant namespace
-    : appInstanceLabel(ad, instance)
+  const labelSelector = appKind === "Tenant"
+    ? undefined // For Tenant resource itself, show all secrets in tenant namespace
+    : appInstanceLabel(ad, instance) // For other apps, filter by application labels
 
   const { data, isLoading } = useK8sList<K8sResource & SecretLike>(
     { ...apiRef, namespace: ns },

@@ -2,9 +2,9 @@ import { useMemo } from "react"
 import { Link } from "react-router"
 import { Plus, Edit } from "lucide-react"
 import { Spinner, Section, Button } from "@cozystack/ui"
-import { useK8sList } from "@cozystack/k8s-client"
-import type { TenantNamespace } from "@cozystack/types"
-import { tenantDisplayName, useTenantContext } from "../lib/tenant-context.tsx"
+import { useK8sList, type K8sResource } from "@cozystack/k8s-client"
+import type { Tenant } from "@cozystack/types"
+import { useTenantContext } from "../lib/tenant-context.tsx"
 import { formatAge } from "../lib/status.ts"
 
 interface TenantModule {
@@ -17,14 +17,27 @@ interface TenantModule {
   }
 }
 
-function tenantHost(ns: TenantNamespace): string | undefined {
-  return ns.metadata.labels?.["namespace.cozystack.io/host"]
+function tenantHost(tenant: Tenant): string | undefined {
+  return tenant.spec?.host
 }
 
 export function TenantsPage() {
-  const { tenants, isLoading } = useTenantContext()
+  const { tenantNamespace } = useTenantContext()
 
-  // Get all TenantModules across all namespaces
+  // Get Tenant ApplicationInstances from current tenant namespace
+  const { data: tenantsData, isLoading } = useK8sList<Tenant>(
+    {
+      apiGroup: "apps.cozystack.io",
+      apiVersion: "v1alpha1",
+      plural: "tenants",
+      namespace: tenantNamespace ?? undefined,
+    },
+    { enabled: !!tenantNamespace }
+  )
+
+  const tenants = tenantsData?.items ?? []
+
+  // Get TenantModules from all namespaces to show modules for each tenant
   const { data: modulesData } = useK8sList<TenantModule>({
     apiGroup: "core.cozystack.io",
     apiVersion: "v1alpha1",
@@ -87,16 +100,17 @@ export function TenantsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {tenants.map((t) => {
-                const name = tenantDisplayName(t)
-                const modules = modulesByNamespace.get(t.metadata.name) ?? []
+                const name = t.metadata.name
+                const tenantNs = t.status?.namespace ?? ""
+                const modules = modulesByNamespace.get(tenantNs) ?? []
                 const host = tenantHost(t)
                 return (
-                  <tr key={t.metadata.name} className="hover:bg-slate-50">
+                  <tr key={name} className="hover:bg-slate-50">
                     <td className="px-4 py-3 text-sm font-medium text-slate-900">
                       {name}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                      {t.metadata.name}
+                      {tenantNs || "—"}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">{host ?? "—"}</td>
                     <td className="px-4 py-3">

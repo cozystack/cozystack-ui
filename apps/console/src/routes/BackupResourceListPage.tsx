@@ -89,11 +89,13 @@ export function BackupResourceListPage({ resourceType, title }: BackupResourceLi
             </p>
           </div>
         </div>
-        <Link to={`/console/backups/${resourceType}/create`}>
-          <Button variant="primary" size="sm">
-            <Plus className="size-3.5" /> Create {title.slice(0, -1)}
-          </Button>
-        </Link>
+        {resourceType !== "backups" && (
+          <Link to={`/console/backups/${resourceType}/create`}>
+            <Button variant="primary" size="sm">
+              <Plus className="size-3.5" /> Create {title.slice(0, -1)}
+            </Button>
+          </Link>
+        )}
       </div>
 
       <Section>

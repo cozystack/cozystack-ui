@@ -77,6 +77,7 @@ export function AdditionalPropertiesField(props: FieldProps) {
             </div>
             <div className="rounded-md bg-white p-3">
               <Form
+                tagName="div"
                 schema={itemSchema}
                 formData={formData[key]}
                 validator={validator}

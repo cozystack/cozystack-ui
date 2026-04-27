@@ -66,6 +66,7 @@ export function AdditionalPropertiesWidget(props: WidgetProps) {
             </div>
             <div className="rounded-md bg-white p-3">
               <Form
+                tagName="div"
                 schema={itemSchema}
                 formData={value[key]}
                 validator={validator}

@@ -12,6 +12,8 @@ import { SourceWidget } from "./SourceWidget.tsx"
 import { StorageClassWidget } from "./StorageClassWidget.tsx"
 import { AdditionalPropertiesWidget } from "./AdditionalPropertiesWidget.tsx"
 import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
+import { VMDiskWidget } from "./VMDiskWidget.tsx"
+import { BackupClassWidget } from "./BackupClassWidget.tsx"
 
 function IconButton<
   T = any,
@@ -45,12 +47,8 @@ export const customTemplates: Partial<TemplatesType> = {
     RemoveButton: (props) => (
       <IconButton {...props} icon="× Remove" className={removeButtonClassName} />
     ),
-    MoveUpButton: (props) => (
-      <IconButton {...props} icon="↑" className={buttonClassName} />
-    ),
-    MoveDownButton: (props) => (
-      <IconButton {...props} icon="↓" className={buttonClassName} />
-    ),
+    MoveUpButton: () => null,
+    MoveDownButton: () => null,
     SubmitButton: (props) => (
       <IconButton {...props} icon="Submit" className={buttonClassName} />
     ),
@@ -61,4 +59,6 @@ export const customWidgets: Partial<WidgetsType> = {
   SourceWidget: SourceWidget,
   StorageClassWidget: StorageClassWidget,
   AdditionalPropertiesWidget: AdditionalPropertiesWidget,
+  VMDiskWidget: VMDiskWidget,
+  BackupClassWidget: BackupClassWidget,
 }

@@ -12,6 +12,7 @@ interface AppShellProps {
   userSettingsUrl?: string
   signOutUrl?: string
   notificationBell?: ReactNode
+  onSearchClick?: () => void
   children?: ReactNode
 }
 
@@ -23,6 +24,7 @@ export function AppShell({
   userSettingsUrl,
   signOutUrl,
   notificationBell,
+  onSearchClick,
   children,
 }: AppShellProps) {
   return (
@@ -33,6 +35,7 @@ export function AppShell({
         userSettingsUrl={userSettingsUrl}
         signOutUrl={signOutUrl}
         notificationBell={notificationBell}
+        onSearchClick={onSearchClick}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar sections={sections} />

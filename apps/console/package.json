@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@base-ui/react": "^1.4.1",
     "@cozystack/k8s-client": "workspace:*",
     "@cozystack/types": "workspace:*",
     "@cozystack/ui": "workspace:*",

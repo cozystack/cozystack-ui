@@ -43,9 +43,11 @@ export function StorageClassWidget(props: WidgetProps) {
     >
       {!required && <option value="">-- None --</option>}
       {isLoading ? (
-        <option value="">Loading storage classes...</option>
+        <option value="">Loading...</option>
       ) : storageClasses.length === 0 ? (
-        <option value="">No storage classes available</option>
+        <option value="" disabled>
+          No storage classes available
+        </option>
       ) : (
         storageClasses.map((sc) => {
           const isDefault =

@@ -20,6 +20,7 @@ interface HeaderProps {
   userSettingsUrl?: string
   signOutUrl?: string
   notificationBell?: ReactNode
+  onSearchClick?: () => void
 }
 
 const DEFAULT_TABS: HeaderTab[] = [
@@ -33,6 +34,7 @@ export function Header({
   userSettingsUrl,
   signOutUrl,
   notificationBell,
+  onSearchClick,
 }: HeaderProps) {
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -76,6 +78,7 @@ export function Header({
       <div className="flex items-center gap-1">
         <button
           type="button"
+          onClick={onSearchClick}
           className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
         >
           <Search className="h-[18px] w-[18px]" />
