@@ -66,7 +66,7 @@ export function useCommandItems(
           "",
         ] as const,
         queryFn: () =>
-          client.list(APPS_GROUP, APPS_VERSION, plural, tenantNamespace),
+          client.list(APPS_GROUP, APPS_VERSION, plural, tenantNamespace ?? undefined),
         enabled: hasQuery && !!plural && !!tenantNamespace,
       }
     }),
@@ -253,20 +253,21 @@ export function useCommandItems(
       const instances = queryResult?.data?.items ?? []
 
       for (const inst of instances) {
+        const instance = inst as any
         items.push({
-          id: `search-inst-${plural}-${inst.metadata.name}`,
-          label: inst.metadata.name,
+          id: `search-inst-${plural}-${instance.metadata.name}`,
+          label: instance.metadata.name,
           description: name,
           icon: adIcon(icon),
           group: "Instances",
           drilldown: true,
-          keywords: [inst.metadata.name, plural, name],
+          keywords: [instance.metadata.name, plural, name],
           onSelect: () =>
             navigate({
               type: "instance",
               plural,
-              instance: inst,
-              label: inst.metadata.name,
+              instance,
+              label: instance.metadata.name,
               resourceLabel: name,
               icon,
             }),

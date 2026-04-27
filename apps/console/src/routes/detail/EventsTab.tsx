@@ -13,6 +13,8 @@ interface EventsTabProps {
 }
 
 interface K8sEvent {
+  apiVersion: string
+  kind: string
   metadata: {
     name: string
     namespace: string
@@ -38,6 +40,8 @@ interface K8sEvent {
 }
 
 interface K8sPod {
+  apiVersion: string
+  kind: string
   metadata: {
     name: string
   }

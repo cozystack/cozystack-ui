@@ -105,23 +105,23 @@ export function ApplicationDetailPage() {
   // Different tab sets for different resource types
   if (kind === "VMDisk") {
     // VMDisk: storage-only resource, no workloads/services/ingresses/secrets
-    tabs.push({ to: `${base}/events`, label: "Events" })
+    tabs.push({ to: `${base}/events`, label: "Events", end: false })
   } else if (kind === "VMInstance") {
     // VMInstance: VM-specific tabs (no ingresses/secrets)
     tabs.push(
-      { to: `${base}/workloads`, label: "Workloads" },
-      { to: `${base}/services`, label: "Services" },
-      { to: `${base}/events`, label: "Events" },
-      { to: `${base}/vnc`, label: "VNC" },
+      { to: `${base}/workloads`, label: "Workloads", end: false },
+      { to: `${base}/services`, label: "Services", end: false },
+      { to: `${base}/events`, label: "Events", end: false },
+      { to: `${base}/vnc`, label: "VNC", end: false },
     )
   } else {
     // Other resources: full tab set
     tabs.push(
-      { to: `${base}/workloads`, label: "Workloads" },
-      { to: `${base}/services`, label: "Services" },
-      { to: `${base}/ingresses`, label: "Ingresses" },
-      { to: `${base}/secrets`, label: "Secrets" },
-      { to: `${base}/events`, label: "Events" },
+      { to: `${base}/workloads`, label: "Workloads", end: false },
+      { to: `${base}/services`, label: "Services", end: false },
+      { to: `${base}/ingresses`, label: "Ingresses", end: false },
+      { to: `${base}/secrets`, label: "Secrets", end: false },
+      { to: `${base}/events`, label: "Events", end: false },
     )
   }
 

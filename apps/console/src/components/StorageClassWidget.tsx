@@ -13,7 +13,7 @@ interface StorageClass {
 }
 
 export function StorageClassWidget(props: WidgetProps) {
-  const { value, onChange, required, disabled, readonly, placeholder } = props
+  const { value, onChange, required, disabled, readonly } = props
 
   const { data: scList, isLoading } = useK8sList<StorageClass>({
     apiGroup: "storage.k8s.io",
