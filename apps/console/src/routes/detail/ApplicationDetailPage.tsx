@@ -67,14 +67,14 @@ export function ApplicationDetailPage() {
   })
 
   if (!plural || !name) return <Navigate to="/console" replace />
-  if (isLoading) {
+  if (isLoading || !instance || !ad) {
     return (
       <div className="flex items-center gap-2 p-8 text-slate-500">
         <Spinner /> Loading…
       </div>
     )
   }
-  if (error || !instance || !ad) {
+  if (error) {
     return (
       <div className="p-8 text-red-600">
         Application <code>{name}</code> not found.

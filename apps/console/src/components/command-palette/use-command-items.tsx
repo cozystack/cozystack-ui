@@ -6,7 +6,6 @@ import { useK8sList, useK8sClient } from "@cozystack/k8s-client"
 import { APPS_GROUP, APPS_VERSION } from "@cozystack/types"
 import { useTenantContext } from "../../lib/tenant-context"
 import type { CommandItem, NavigationLevel } from "./types"
-import type { K8sList, K8sResource } from "@cozystack/k8s-client"
 
 function matchesQuery(item: CommandItem, query: string): boolean {
   const q = query.toLowerCase()
@@ -67,7 +66,7 @@ export function useCommandItems(
           "",
         ] as const,
         queryFn: () =>
-          client.list<K8sResource>(APPS_GROUP, APPS_VERSION, plural, tenantNamespace),
+          client.list(APPS_GROUP, APPS_VERSION, plural, tenantNamespace),
         enabled: hasQuery && !!plural && !!tenantNamespace,
       }
     }),
