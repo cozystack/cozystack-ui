@@ -22,8 +22,9 @@ export function VncTab({ ad, instance }: VncTabProps) {
 
     let mounted = true
 
-    // Build WebSocket URL through kubectl proxy
-    const wsUrl = `ws://localhost:8001/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${instance.metadata.name}/vnc`
+    // Build WebSocket URL using current location
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+    const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${instance.metadata.name}/vnc`
 
     // Dynamically import RFB
     import("@novnc/novnc/lib/rfb").then((module) => {
@@ -122,7 +123,8 @@ export function VncTab({ ad, instance }: VncTabProps) {
       setConnecting(true)
       setError(null)
 
-      const wsUrl = `ws://localhost:8001/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${instance.metadata.name}/vnc`
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+      const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${instance.metadata.name}/vnc`
 
       import("@novnc/novnc/lib/rfb").then((module) => {
         if (!vncContainerRef.current) return
