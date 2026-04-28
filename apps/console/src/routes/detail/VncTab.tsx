@@ -23,8 +23,10 @@ export function VncTab({ ad, instance }: VncTabProps) {
     let mounted = true
 
     // Build WebSocket URL using current location
+    // KubeVirt VMI name has "vm-instance-" prefix added by Cozystack
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-    const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${instance.metadata.name}/vnc`
+    const vmiName = `vm-instance-${instance.metadata.name}`
+    const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${vmiName}/vnc`
 
     // Dynamically import RFB
     import("@novnc/novnc/lib/rfb").then((module) => {
@@ -124,7 +126,8 @@ export function VncTab({ ad, instance }: VncTabProps) {
       setError(null)
 
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-      const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${instance.metadata.name}/vnc`
+      const vmiName = `vm-instance-${instance.metadata.name}`
+      const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${vmiName}/vnc`
 
       import("@novnc/novnc/lib/rfb").then((module) => {
         if (!vncContainerRef.current) return
