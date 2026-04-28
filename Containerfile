@@ -41,18 +41,18 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # Kubernetes API proxy for both core and aggregated groups.
-    # Chunked-encoding watches require proxy_buffering off and a long timeout.
+    # Kubernetes API proxy through BFF for authentication
+    # BFF container handles ServiceAccount auth and proxies to k8s.default.svc
     location /apis {
         proxy_http_version 1.1;
         proxy_buffering off;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host kubernetes.default.svc;
+        proxy_set_header Host $host;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
-        proxy_pass https://kubernetes.default.svc:443;
+        proxy_pass http://localhost:64231;
     }
 
     location /api {
@@ -61,10 +61,10 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host kubernetes.default.svc;
+        proxy_set_header Host $host;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
-        proxy_pass https://kubernetes.default.svc:443;
+        proxy_pass http://localhost:64231;
     }
 
     # SPA fallback: serve index.html for all frontend routes.
