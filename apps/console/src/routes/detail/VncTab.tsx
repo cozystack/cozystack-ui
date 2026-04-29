@@ -119,7 +119,12 @@ export function VncTab({ ad, instance }: VncTabProps) {
   }
 
   const handleReconnect = () => {
-    // Clear container and reinitialize
+    // Disconnect previous client before clearing container
+    if (rfbRef.current) {
+      rfbRef.current.disconnect()
+      rfbRef.current = null
+    }
+
     if (vncContainerRef.current) {
       vncContainerRef.current.innerHTML = ""
       setConnecting(true)
@@ -132,8 +137,7 @@ export function VncTab({ ad, instance }: VncTabProps) {
       import("@novnc/novnc/lib/rfb").then((module) => {
         if (!vncContainerRef.current) return
 
-        // The module has nested default: module.default.default is the RFB constructor
-        const RFB = (module as any).default?.default || module.default || module
+        const RFB = module.default
 
         try {
           const rfb = new RFB(vncContainerRef.current, wsUrl, { credentials: {} })

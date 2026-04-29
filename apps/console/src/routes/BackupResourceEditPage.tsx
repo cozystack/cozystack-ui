@@ -62,9 +62,7 @@ export function BackupResourceEditPage({
     }
   }, [resource])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleSubmit = async () => {
     if (!resource) return
 
     const updated = {
@@ -124,7 +122,7 @@ export function BackupResourceEditPage({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <div>
         <Section>
           <div className="space-y-4 p-5">
             {schema && (
@@ -142,9 +140,10 @@ export function BackupResourceEditPage({
 
           <div className="flex items-center gap-2 border-t border-slate-200 px-5 py-3">
             <Button
-              type="submit"
+              type="button"
               variant="primary"
               size="sm"
+              onClick={handleSubmit}
               disabled={updateMutation.isPending}
             >
               {updateMutation.isPending ? (
@@ -168,7 +167,7 @@ export function BackupResourceEditPage({
             </Button>
           </div>
         </Section>
-      </form>
+      </div>
     </div>
   )
 }

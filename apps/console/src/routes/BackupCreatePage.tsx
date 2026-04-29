@@ -103,9 +103,7 @@ export function BackupCreatePage() {
     return JSON.stringify(enriched)
   }, [baseSchema, appDefs, instancesData, selectedKind])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleSubmit = async () => {
     if (!name.trim()) {
       alert("Name is required")
       return
@@ -178,7 +176,7 @@ export function BackupCreatePage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <div>
         <Section>
           <div className="space-y-4 p-5">
             <div>
@@ -208,9 +206,10 @@ export function BackupCreatePage() {
 
           <div className="flex items-center gap-2 border-t border-slate-200 px-5 py-3">
             <Button
-              type="submit"
+              type="button"
               variant="primary"
               size="sm"
+              onClick={handleSubmit}
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? (
@@ -234,7 +233,7 @@ export function BackupCreatePage() {
             </Button>
           </div>
         </Section>
-      </form>
+      </div>
     </div>
   )
 }
