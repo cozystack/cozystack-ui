@@ -200,24 +200,15 @@ export function SecretsTab({
 
   const { data, isLoading } = useK8sList<K8sResource & SecretLike>(
     { ...apiRef, namespace: ns },
-    // WORKAROUND: TenantSecrets API ignores labelSelector (issue #2527)
-    // Pass labelSelector anyway for regular Secrets, filter client-side for TenantSecrets
-    { labelSelector: isInTenantNamespace ? undefined : labelSelector },
+    {
+      labelSelector,
+      // TenantSecrets Watch ignores labelSelector (cozystack#2527), so disable
+      // live updates and rely on List which honors the selector correctly.
+      watch: !isInTenantNamespace,
+    },
   )
 
-  // Client-side filtering for TenantSecrets (workaround for API bug)
-  const items = isInTenantNamespace && labelSelector
-    ? (data?.items ?? []).filter((item) => {
-        const labels = item.metadata.labels ?? {}
-        // Parse labelSelector (e.g., "key1=val1,key2=val2")
-        const required = labelSelector.split(',').map(pair => {
-          const [key, value] = pair.split('=')
-          return { key: key.trim(), value: value.trim() }
-        })
-        // Check all required labels match
-        return required.every(({ key, value }) => labels[key] === value)
-      })
-    : (data?.items ?? [])
+  const items = data?.items ?? []
   return (
     <div className="p-6">
       <Section title="Secrets" bodyClassName="p-0">
