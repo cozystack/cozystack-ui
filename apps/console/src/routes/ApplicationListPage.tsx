@@ -102,7 +102,7 @@ export function ApplicationListPage() {
                   <tr
                     key={inst.metadata.name}
                     onClick={() => navigate(`/console/${plural}/${inst.metadata.name}`)}
-                    className="cursor-pointer hover:bg-slate-50"
+                    className="cursor-pointer transition-colors duration-100 hover:bg-slate-50"
                   >
                     <td className="px-4 py-3 font-mono text-xs text-slate-800">
                       {inst.metadata.name}
