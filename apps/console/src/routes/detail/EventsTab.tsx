@@ -47,8 +47,21 @@ interface K8sPod {
   }
 }
 
+interface K8sPVC {
+  apiVersion: string
+  kind: string
+  metadata: {
+    name: string
+  }
+}
+
 export function EventsTab({ ad: _ad, instance }: EventsTabProps) {
   const { tenantNamespace } = useTenantContext()
+
+  const appLabelSelector = [
+    `apps.cozystack.io/application.name=${instance.metadata.name}`,
+    `apps.cozystack.io/application.kind=${instance.kind}`,
+  ].join(",")
 
   // Load Pods belonging to this application
   const { data: podsList } = useK8sList<K8sPod>(
@@ -60,7 +73,21 @@ export function EventsTab({ ad: _ad, instance }: EventsTabProps) {
     },
     {
       enabled: !!tenantNamespace,
-      labelSelector: `apps.cozystack.io/application.name=${instance.metadata.name}`,
+      labelSelector: appLabelSelector,
+    },
+  )
+
+  // Load PVCs belonging to this application
+  const { data: pvcList } = useK8sList<K8sPVC>(
+    {
+      apiGroup: "",
+      apiVersion: "v1",
+      plural: "persistentvolumeclaims",
+      namespace: tenantNamespace ?? undefined,
+    },
+    {
+      enabled: !!tenantNamespace,
+      labelSelector: appLabelSelector,
     },
   )
 
@@ -79,9 +106,11 @@ export function EventsTab({ ad: _ad, instance }: EventsTabProps) {
   // Build set of resource names that belong to this application
   const allEvents = eventsList?.items || []
   const pods = podsList?.items || []
+  const pvcs = pvcList?.items || []
   const relatedResourceNames = new Set<string>([
     instance.metadata.name, // The instance itself
     ...pods.map((pod) => pod.metadata.name), // All pods
+    ...pvcs.map((pvc) => pvc.metadata.name), // All PVCs
   ])
 
   // Filter events related to this application
