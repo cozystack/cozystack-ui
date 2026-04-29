@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { Outlet } from "react-router"
 import { Header, type HeaderTab } from "./Header.tsx"
 import { Sidebar, type SidebarSection } from "./Sidebar.tsx"
@@ -29,6 +29,8 @@ export function AppShell({
   version,
   children,
 }: AppShellProps) {
+  const [scrolled, setScrolled] = useState(false)
+
   return (
     <div className="flex h-screen flex-col bg-slate-50">
       <Header
@@ -39,6 +41,7 @@ export function AppShell({
         notificationBell={notificationBell}
         onSearchClick={onSearchClick}
         version={version}
+        scrolled={scrolled}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar sections={sections} />
@@ -48,7 +51,12 @@ export function AppShell({
               {subtitle}
             </div>
           )}
-          <main className="flex-1 overflow-auto">{children ?? <Outlet />}</main>
+          <main
+            className="flex-1 overflow-auto"
+            onScroll={(e) => setScrolled((e.currentTarget as HTMLElement).scrollTop > 0)}
+          >
+            {children ?? <Outlet />}
+          </main>
         </div>
       </div>
     </div>
