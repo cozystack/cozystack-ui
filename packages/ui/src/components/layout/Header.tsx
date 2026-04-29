@@ -23,6 +23,8 @@ interface HeaderProps {
   onSearchClick?: () => void
   version?: string
   scrolled?: boolean
+  logoSvg?: string
+  logoText?: string
 }
 
 const DEFAULT_TABS: HeaderTab[] = [
@@ -39,6 +41,8 @@ export function Header({
   onSearchClick,
   version,
   scrolled,
+  logoSvg,
+  logoText,
 }: HeaderProps) {
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -52,7 +56,7 @@ export function Header({
     >
       <div className="flex items-center gap-6">
         <Link to="/" className="flex items-center gap-2">
-          <Logo className="h-5 w-auto" />
+          <Logo className="h-5 w-auto" svgContent={logoSvg} text={logoText} />
           {version && (
             <span className="text-xs font-medium text-slate-400">{version}</span>
           )}

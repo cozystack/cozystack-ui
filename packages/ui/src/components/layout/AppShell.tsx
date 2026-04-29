@@ -15,6 +15,8 @@ interface AppShellProps {
   onSearchClick?: () => void
   version?: string
   children?: ReactNode
+  logoSvg?: string
+  logoText?: string
 }
 
 export function AppShell({
@@ -28,6 +30,8 @@ export function AppShell({
   onSearchClick,
   version,
   children,
+  logoSvg,
+  logoText,
 }: AppShellProps) {
   const [scrolled, setScrolled] = useState(false)
 
@@ -42,6 +46,8 @@ export function AppShell({
         onSearchClick={onSearchClick}
         version={version}
         scrolled={scrolled}
+        logoSvg={logoSvg}
+        logoText={logoText}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar sections={sections} />
