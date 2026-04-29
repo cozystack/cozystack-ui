@@ -20,7 +20,7 @@ function Shell() {
   const { toggle } = useCommandPalette()
 
   return (
-    <AppShell sections={sections} subtitle={<Breadcrumb />} onSearchClick={toggle}>
+    <AppShell sections={sections} subtitle={<Breadcrumb />} onSearchClick={toggle} version={import.meta.env.VITE_APP_VERSION}>
       <CommandPalette />
       <Routes>
         <Route path="/" element={<Navigate to="/marketplace" replace />} />

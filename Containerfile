@@ -3,6 +3,9 @@ ARG NODE_VERSION=22-alpine
 # Stage 1: Install dependencies and build
 FROM node:${NODE_VERSION} AS builder
 
+ARG APP_VERSION
+ENV VITE_APP_VERSION=${APP_VERSION}
+
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /src

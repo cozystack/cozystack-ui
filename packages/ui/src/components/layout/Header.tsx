@@ -21,6 +21,7 @@ interface HeaderProps {
   signOutUrl?: string
   notificationBell?: ReactNode
   onSearchClick?: () => void
+  version?: string
 }
 
 const DEFAULT_TABS: HeaderTab[] = [
@@ -35,6 +36,7 @@ export function Header({
   signOutUrl,
   notificationBell,
   onSearchClick,
+  version,
 }: HeaderProps) {
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -42,8 +44,11 @@ export function Header({
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
       <div className="flex items-center gap-6">
-        <Link to="/" className="flex items-center">
+        <Link to="/" className="flex items-center gap-2">
           <Logo className="h-5 w-auto" />
+          {version && (
+            <span className="text-xs font-medium text-slate-400">{version}</span>
+          )}
         </Link>
         <nav className="flex items-center gap-1">
           {tabs.map((t) => {
