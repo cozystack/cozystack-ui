@@ -6,12 +6,20 @@ export interface AppConfig {
   iconSvg?: string
 }
 
+const CONFIG_NAMESPACE = "cozy-dashboard"
+const CONFIG_MAP_NAME = "cozy-dashboard-console-config"
+
 export async function loadConfig(): Promise<AppConfig> {
   try {
-    const resp = await fetch("/config.json")
-    if (resp.ok) return resp.json() as Promise<AppConfig>
+    const resp = await fetch(
+      `/api/v1/namespaces/${CONFIG_NAMESPACE}/configmaps/${CONFIG_MAP_NAME}`,
+    )
+    if (!resp.ok) return {}
+    const cm = await resp.json()
+    const raw = cm?.data?.["config.json"]
+    if (!raw) return {}
+    return JSON.parse(raw) as AppConfig
   } catch {
-    // config.json is optional; fall back to defaults
+    return {}
   }
-  return {}
 }
