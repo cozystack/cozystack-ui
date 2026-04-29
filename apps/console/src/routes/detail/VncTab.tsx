@@ -30,10 +30,11 @@ export function VncTab({ ad, instance }: VncTabProps) {
     const wsUrl = `${wsProtocol}//${window.location.host}/k8s/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${vmiName}/vnc`
 
     // Dynamically import RFB
+    // noVNC is CJS: Vite wraps module.exports as .default, so RFB is at .default.default
     import("@novnc/novnc/lib/rfb").then((module) => {
       if (!mounted || !vncContainerRef.current) return
 
-      const RFB = module.default
+      const RFB = (module as any).default?.default ?? module.default
 
       try {
         // Initialize noVNC RFB client
@@ -137,7 +138,7 @@ export function VncTab({ ad, instance }: VncTabProps) {
       import("@novnc/novnc/lib/rfb").then((module) => {
         if (!vncContainerRef.current) return
 
-        const RFB = module.default
+        const RFB = (module as any).default?.default ?? module.default
 
         try {
           const rfb = new RFB(vncContainerRef.current, wsUrl, { credentials: {} })
