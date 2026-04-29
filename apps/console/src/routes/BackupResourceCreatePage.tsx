@@ -51,9 +51,16 @@ export function BackupResourceCreatePage({
       return
     }
 
+    const kindMap: Record<BackupResourceCreatePageProps["resourceType"], string> = {
+      plans: "Plan",
+      backupjobs: "BackupJob",
+      backups: "Backup",
+      restorejobs: "RestoreJob",
+    }
+
     const resource = {
       apiVersion: "backups.cozystack.io/v1alpha1",
-      kind: title.slice(0, -1), // Remove 's' from plural title
+      kind: kindMap[resourceType],
       metadata: {
         name: name.trim(),
         namespace: tenantNamespace ?? undefined,

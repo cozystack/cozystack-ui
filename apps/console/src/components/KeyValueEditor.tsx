@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 interface KeyValuePair {
   key: string
@@ -11,15 +11,29 @@ interface KeyValueEditorProps {
   readonly?: boolean
 }
 
+function toPairs(value: Record<string, unknown>): KeyValuePair[] {
+  return Object.entries(value || {}).map(([key, val]) => ({
+    key,
+    value: typeof val === "string" ? val : JSON.stringify(val),
+  }))
+}
+
 export function KeyValueEditor({ value, onChange, readonly }: KeyValueEditorProps) {
-  const [pairs, setPairs] = useState<KeyValuePair[]>(() => {
-    return Object.entries(value || {}).map(([key, val]) => ({
-      key,
-      value: typeof val === "string" ? val : JSON.stringify(val),
-    }))
-  })
+  const [pairs, setPairs] = useState<KeyValuePair[]>(() => toPairs(value))
+  // Tracks whether the latest value change originated inside this component.
+  // If so, the incoming prop update is our own echo and we skip re-sync.
+  const internalChange = useRef(false)
+
+  useEffect(() => {
+    if (internalChange.current) {
+      internalChange.current = false
+      return
+    }
+    setPairs(toPairs(value))
+  }, [value])
 
   const updatePairs = (newPairs: KeyValuePair[]) => {
+    internalChange.current = true
     setPairs(newPairs)
     const obj: Record<string, unknown> = {}
     for (const pair of newPairs) {
