@@ -2,7 +2,8 @@ export function enrichSchemaWithEnums(
   schema: unknown,
   path: string[],
   enumMap: Record<string, string[]>
-): unknown {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
   if (!schema || typeof schema !== "object") return schema
 
   const currentPath = path.join(".")
