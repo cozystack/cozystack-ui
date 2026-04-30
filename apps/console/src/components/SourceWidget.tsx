@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { WidgetProps } from "@rjsf/utils"
 
 export function SourceWidget(props: WidgetProps) {
@@ -6,12 +6,19 @@ export function SourceWidget(props: WidgetProps) {
   const properties = schema.properties || {}
   const options = Object.keys(properties)
 
-  // Determine which option is currently selected
   const currentOption = value
     ? options.find((opt: string) => value[opt] !== undefined && value[opt] !== null)
     : undefined
 
   const [selected, setSelected] = useState<string | undefined>(currentOption)
+
+  // Re-sync when value changes externally (e.g. async load in edit forms)
+  useEffect(() => {
+    const opt = value
+      ? options.find((o: string) => value[o] !== undefined && value[o] !== null)
+      : undefined
+    setSelected(opt)
+  }, [value])
 
   const handleSelect = (option: string) => {
     setSelected(option)
@@ -120,9 +127,9 @@ export function SourceWidget(props: WidgetProps) {
                   {optionDescription && (
                     <div className="text-xs text-slate-500 mt-0.5">{optionDescription}</div>
                   )}
-                  {isSelected && renderFieldInput(option)}
                 </div>
               </label>
+              {isSelected && renderFieldInput(option)}
             </div>
           )
         })}

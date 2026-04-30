@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import type { WidgetProps } from "@rjsf/utils"
 import { useK8sList } from "@cozystack/k8s-client"
 
@@ -26,9 +26,11 @@ export function StorageClassWidget(props: WidgetProps) {
     (sc) => sc.metadata.annotations?.["storageclass.kubernetes.io/is-default-class"] === "true"
   )
 
-  // Set default storage class if value is empty and default exists
+  // Auto-select default storage class only on initial load, not after user clears the field
+  const hasAutoDefaulted = useRef(false)
   useEffect(() => {
-    if (!value && defaultSC && !isLoading) {
+    if (!hasAutoDefaulted.current && !value && defaultSC && !isLoading) {
+      hasAutoDefaulted.current = true
       onChange(defaultSC.metadata.name)
     }
   }, [value, defaultSC, isLoading, onChange])
@@ -36,7 +38,10 @@ export function StorageClassWidget(props: WidgetProps) {
   return (
     <select
       value={value || ""}
-      onChange={(e) => onChange(e.target.value || undefined)}
+      onChange={(e) => {
+        if (!e.target.value) hasAutoDefaulted.current = false
+        onChange(e.target.value || undefined)
+      }}
       disabled={disabled || readonly || isLoading}
       required={required}
       className="w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"

@@ -46,21 +46,15 @@ export function TenantsPage() {
     plural: "tenantmodules",
   })
 
-  // Group modules by namespace
+  // Group non-info modules by namespace (info is always the default, never shown)
   const modulesByNamespace = useMemo(() => {
     const map = new Map<string, string[]>()
-    modulesData?.items.forEach((mod) => {
+    for (const mod of modulesData?.items ?? []) {
+      if (mod.metadata.name === "info") continue
       const ns = mod.metadata.namespace
-      if (!map.has(ns)) {
-        map.set(ns, [])
-      }
-      // Only include info module if it's not the only module (info is default)
-      if (mod.metadata.name !== "info" || (modulesData?.items.filter(m => m.metadata.namespace === ns).length ?? 0) > 1) {
-        if (mod.metadata.name !== "info") {
-          map.get(ns)!.push(mod.metadata.name)
-        }
-      }
-    })
+      if (!map.has(ns)) map.set(ns, [])
+      map.get(ns)!.push(mod.metadata.name)
+    }
     return map
   }, [modulesData])
 

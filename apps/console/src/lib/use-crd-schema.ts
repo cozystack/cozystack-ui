@@ -37,8 +37,9 @@ export function useCRDSchema(crdName: string) {
     { enabled: !!crdName },
   )
 
-  // Extract the schema from the first version's spec field
-  const schema = crd?.spec?.versions?.[0]?.schema?.openAPIV3Schema?.properties?.spec
+  // Use the storage version (authoritative) or fall back to the first listed version
+  const version = crd?.spec?.versions?.find((v) => v.storage) ?? crd?.spec?.versions?.[0]
+  const schema = version?.schema?.openAPIV3Schema?.properties?.spec
 
   return {
     schema: schema ? JSON.stringify(schema) : null,

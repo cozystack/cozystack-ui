@@ -18,7 +18,7 @@ function IconButton<
   S extends StrictRJSFSchema = RJSFSchema,
   F extends FormContextType = any,
 >(props: IconButtonProps<T, S, F>) {
-  const { icon, iconType, uiSchema, registry, className, ...btnProps } = props
+  const { icon, className, ...btnProps } = props
   return (
     <button
       type="button"

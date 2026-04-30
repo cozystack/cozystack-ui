@@ -38,18 +38,20 @@ function SecretRow({
   keyName,
   base64Value,
   forceReveal,
+  apiRef = SECRETS_REF,
 }: {
   namespace: string
   name: string
   keyName: string
   base64Value: string
   forceReveal?: boolean
+  apiRef?: typeof SECRETS_REF
 }) {
   const [revealed, setRevealed] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const shouldReveal = forceReveal || revealed
   const { data } = useK8sGet<K8sResource<unknown, unknown> & SecretLike>(
-    { ...SECRETS_REF, namespace, name },
+    { ...apiRef, namespace, name },
     { enabled: shouldReveal },
   )
   const fullValue = shouldReveal
@@ -109,9 +111,11 @@ function SecretRow({
 function SecretItem({
   secret,
   namespace,
+  apiRef = SECRETS_REF,
 }: {
   secret: K8sResource & SecretLike
   namespace: string
+  apiRef?: typeof SECRETS_REF
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [revealAll, setRevealAll] = useState(false)
@@ -163,6 +167,7 @@ function SecretItem({
               keyName={k}
               base64Value={secret.data?.[k] ?? ""}
               forceReveal={revealAll}
+              apiRef={apiRef}
             />
           ))}
         </div>
@@ -221,7 +226,7 @@ export function SecretsTab({
         ) : (
           <ul className="divide-y divide-slate-100">
             {items.map((sec) => (
-              <SecretItem key={sec.metadata.name} secret={sec} namespace={ns} />
+              <SecretItem key={sec.metadata.name} secret={sec} namespace={ns} apiRef={apiRef} />
             ))}
           </ul>
         )}
