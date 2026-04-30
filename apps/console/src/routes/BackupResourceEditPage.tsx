@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import { Archive, Save } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
@@ -22,6 +22,7 @@ export function BackupResourceEditPage({
   const navigate = useNavigate()
   const { tenantNamespace } = useTenantContext()
   const [formData, setFormData] = useState<any>({})
+  const initializedRef = useRef(false)
 
   // Map resourceType to CRD name
   const crdNameMap = {
@@ -55,9 +56,10 @@ export function BackupResourceEditPage({
     namespace: tenantNamespace ?? "",
   })
 
-  // Initialize form data from resource
+  // Initialize form data from resource only once to avoid overwriting in-progress edits on refetch
   useEffect(() => {
-    if (resource?.spec) {
+    if (resource?.spec && !initializedRef.current) {
+      initializedRef.current = true
       setFormData(resource.spec)
     }
   }, [resource])

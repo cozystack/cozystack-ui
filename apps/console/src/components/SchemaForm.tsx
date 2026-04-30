@@ -209,6 +209,7 @@ export function SchemaForm({
   return (
     <div className="rjsf-container">
       <Form
+        tagName="div"
         schema={schema}
         uiSchema={uiSchema}
         formData={formData}

@@ -7,37 +7,7 @@ import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useApplicationDefinitions } from "../lib/app-definitions.ts"
 import { useCRDSchema } from "../lib/use-crd-schema.ts"
 import { SchemaForm } from "../components/SchemaForm.tsx"
-
-/**
- * Recursively adds enum values to schema properties
- */
-function enrichSchemaWithEnums(
-  schema: any,
-  path: string[],
-  enumMap: Record<string, string[]>
-): any {
-  if (!schema || typeof schema !== "object") return schema
-
-  const currentPath = path.join(".")
-  const result = { ...schema }
-
-  // Add enum if this path has enum values
-  if (enumMap[currentPath]) {
-    result.enum = enumMap[currentPath]
-  }
-
-  // Recurse into properties
-  if (result.properties) {
-    result.properties = Object.fromEntries(
-      Object.entries(result.properties).map(([key, value]) => [
-        key,
-        enrichSchemaWithEnums(value, [...path, key], enumMap),
-      ])
-    )
-  }
-
-  return result
-}
+import { enrichSchemaWithEnums } from "../lib/backup-utils.ts"
 
 export function BackupRestoreJobCreatePage() {
   const navigate = useNavigate()
