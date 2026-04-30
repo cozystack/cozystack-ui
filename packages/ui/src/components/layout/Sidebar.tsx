@@ -36,8 +36,8 @@ export function Sidebar({ sections }: SidebarProps) {
   }
 
   return (
-    <aside className="w-52 shrink-0 border-r border-slate-200 bg-white">
-      <nav className="py-3">
+    <aside className="flex w-52 shrink-0 flex-col border-r border-slate-200 bg-white">
+      <nav className="flex-1 overflow-y-auto py-3">
         {sections.map((section) => (
           <div key={section.title} className="mb-1">
             <button
@@ -62,9 +62,9 @@ export function Sidebar({ sections }: SidebarProps) {
                     end={item.end ?? false}
                     className={({ isActive }) =>
                       cn(
-                        "flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] transition-colors",
+                        "relative flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] transition-all duration-150",
                         isActive
-                          ? "bg-blue-50 font-medium text-blue-700"
+                          ? "bg-blue-50 font-medium text-blue-700 before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-blue-500 before:content-['']"
                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                       )
                     }
@@ -74,7 +74,7 @@ export function Sidebar({ sections }: SidebarProps) {
                         {item.icon && (
                           <item.icon
                             className={cn(
-                              "h-4 w-4 shrink-0",
+                              "h-4 w-4 shrink-0 transition-colors",
                               isActive ? "text-blue-500" : "text-slate-400",
                             )}
                           />

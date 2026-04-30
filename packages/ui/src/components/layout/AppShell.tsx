@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { Outlet } from "react-router"
 import { Header, type HeaderTab } from "./Header.tsx"
 import { Sidebar, type SidebarSection } from "./Sidebar.tsx"
@@ -12,7 +12,11 @@ interface AppShellProps {
   userSettingsUrl?: string
   signOutUrl?: string
   notificationBell?: ReactNode
+  onSearchClick?: () => void
+  version?: string
   children?: ReactNode
+  logoSvg?: string
+  logoText?: string
 }
 
 export function AppShell({
@@ -23,8 +27,14 @@ export function AppShell({
   userSettingsUrl,
   signOutUrl,
   notificationBell,
+  onSearchClick,
+  version,
   children,
+  logoSvg,
+  logoText,
 }: AppShellProps) {
+  const [scrolled, setScrolled] = useState(false)
+
   return (
     <div className="flex h-screen flex-col bg-slate-50">
       <Header
@@ -33,6 +43,11 @@ export function AppShell({
         userSettingsUrl={userSettingsUrl}
         signOutUrl={signOutUrl}
         notificationBell={notificationBell}
+        onSearchClick={onSearchClick}
+        version={version}
+        scrolled={scrolled}
+        logoSvg={logoSvg}
+        logoText={logoText}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar sections={sections} />
@@ -42,7 +57,12 @@ export function AppShell({
               {subtitle}
             </div>
           )}
-          <main className="flex-1 overflow-auto">{children ?? <Outlet />}</main>
+          <main
+            className="flex-1 overflow-auto"
+            onScroll={(e) => setScrolled((e.currentTarget as HTMLElement).scrollTop > 0)}
+          >
+            {children ?? <Outlet />}
+          </main>
         </div>
       </div>
     </div>

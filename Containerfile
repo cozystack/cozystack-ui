@@ -3,6 +3,9 @@ ARG NODE_VERSION=22-alpine
 # Stage 1: Install dependencies and build
 FROM node:${NODE_VERSION} AS builder
 
+ARG APP_VERSION
+ENV VITE_APP_VERSION=${APP_VERSION}
+
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /src
@@ -64,6 +67,20 @@ server {
         proxy_set_header Host kubernetes.default.svc;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
+        proxy_pass https://kubernetes.default.svc:443;
+    }
+
+    # /k8s prefix for VNC WebSocket compatibility
+    location /k8s/ {
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host kubernetes.default.svc;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        rewrite /k8s/(.*) /$1 break;
         proxy_pass https://kubernetes.default.svc:443;
     }
 

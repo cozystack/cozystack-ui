@@ -31,6 +31,7 @@ import { WorkloadsTab } from "./WorkloadsTab.tsx"
 import { ServicesTab } from "./ServicesTab.tsx"
 import { IngressesTab } from "./IngressesTab.tsx"
 import { SecretsTab } from "./SecretsTab.tsx"
+import { EventsTab } from "./EventsTab.tsx"
 import { VncTab } from "./VncTab.tsx"
 
 export function ApplicationDetailPage() {
@@ -53,7 +54,10 @@ export function ApplicationDetailPage() {
       name: name ?? "",
       namespace: tenantNamespace ?? "",
     },
-    { enabled: !!plural && !!name && !!tenantNamespace },
+    {
+      enabled: !!plural && !!name && !!tenantNamespace,
+      refetchInterval: 5000, // Auto-refresh every 5 seconds
+    },
   )
 
   const del = useK8sDelete({
@@ -64,14 +68,14 @@ export function ApplicationDetailPage() {
   })
 
   if (!plural || !name) return <Navigate to="/console" replace />
-  if (isLoading) {
+  if (isLoading || !instance || !ad) {
     return (
       <div className="flex items-center gap-2 p-8 text-slate-500">
         <Spinner /> Loading…
       </div>
     )
   }
-  if (error || !instance || !ad) {
+  if (error) {
     return (
       <div className="p-8 text-red-600">
         Application <code>{name}</code> not found.
@@ -83,7 +87,7 @@ export function ApplicationDetailPage() {
     if (!confirm(`Delete ${appDisplayName(ad)} "${name}"? This cannot be undone.`)) return
     try {
       await del.mutateAsync(name)
-      navigate("/console")
+      navigate(`/console/${plural}`)
     } catch (err) {
       alert((err as Error).message)
     }
@@ -92,17 +96,33 @@ export function ApplicationDetailPage() {
   const ready = readyCondition(instance)
   const icon = iconDataUrl(ad)
   const base = `/console/${plural}/${name}`
+  const kind = ad.spec?.application.kind
+
   // Absolute URLs so NavLink always rewrites the whole "/<plural>/<name>/..."
   // suffix instead of appending to the current tab path.
-  const tabs = [
-    { to: base, label: "Overview", end: true },
-    { to: `${base}/workloads`, label: "Workloads" },
-    { to: `${base}/services`, label: "Services" },
-    { to: `${base}/ingresses`, label: "Ingresses" },
-    { to: `${base}/secrets`, label: "Secrets" },
-  ]
-  if (ad.spec?.application.kind === "VMInstance") {
-    tabs.push({ to: `${base}/vnc`, label: "VNC" })
+  const tabs = [{ to: base, label: "Overview", end: true }]
+
+  // Different tab sets for different resource types
+  if (kind === "VMDisk") {
+    // VMDisk: storage-only resource, no workloads/services/ingresses/secrets
+    tabs.push({ to: `${base}/events`, label: "Events", end: false })
+  } else if (kind === "VMInstance") {
+    // VMInstance: VM-specific tabs (no ingresses/secrets)
+    tabs.push(
+      { to: `${base}/workloads`, label: "Workloads", end: false },
+      { to: `${base}/services`, label: "Services", end: false },
+      { to: `${base}/events`, label: "Events", end: false },
+      { to: `${base}/vnc`, label: "VNC", end: false },
+    )
+  } else {
+    // Other resources: full tab set
+    tabs.push(
+      { to: `${base}/workloads`, label: "Workloads", end: false },
+      { to: `${base}/services`, label: "Services", end: false },
+      { to: `${base}/ingresses`, label: "Ingresses", end: false },
+      { to: `${base}/secrets`, label: "Secrets", end: false },
+      { to: `${base}/events`, label: "Events", end: false },
+    )
   }
 
   return (
@@ -171,6 +191,10 @@ export function ApplicationDetailPage() {
           <Route
             path="secrets"
             element={<SecretsTab ad={ad} instance={instance} />}
+          />
+          <Route
+            path="events"
+            element={<EventsTab ad={ad} instance={instance} />}
           />
           <Route path="vnc" element={<VncTab ad={ad} instance={instance} />} />
         </Routes>

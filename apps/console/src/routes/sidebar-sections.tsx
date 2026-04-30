@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 import {
+  Archive,
   Cloud,
   Database,
   Globe,
@@ -95,6 +96,16 @@ export function useConsoleSidebarSections(): SidebarSection[] {
       }),
     }))
 
+    const backupsSection: SidebarSection = {
+      title: "Backups",
+      items: [
+        { label: "Plans", to: "/console/backups/plans", icon: Archive },
+        { label: "Backup Jobs", to: "/console/backups/backupjobs", icon: Archive },
+        { label: "Backups", to: "/console/backups/backups", icon: Archive },
+        { label: "Restore Jobs", to: "/console/backups/restorejobs", icon: Archive },
+      ],
+    }
+
     const administrationSection: SidebarSection = {
       title: "Administration",
       items: [
@@ -105,6 +116,6 @@ export function useConsoleSidebarSections(): SidebarSection[] {
       ],
     }
 
-    return [...categorySections, administrationSection]
+    return [...categorySections, backupsSection, administrationSection]
   }, [grouped])
 }

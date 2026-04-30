@@ -37,24 +37,31 @@ function displayName(ns: TenantNamespace): string {
 }
 
 export function TenantProvider({ children }: { children: ReactNode }) {
-  // TenantNamespace is cluster-scoped, so a single list() call enumerates
-  // every tenant namespace — root, its children and any deeper descendants.
-  const list = useK8sList<TenantNamespace>({
-    apiGroup: "core.cozystack.io",
-    apiVersion: "v1alpha1",
-    plural: "tenantnamespaces",
+  const [selectedTenant, setSelectedTenant] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null
+    return window.localStorage.getItem(SELECTED_TENANT_KEY)
   })
+
+  const ns = selectedTenant ? `${TENANT_NAMESPACE_PREFIX}${selectedTenant}` : null
+
+  // TenantNamespace is cluster-scoped, filter by parent tenant label
+  // to show only child tenants of the selected tenant
+  const labelSelector = ns ? `tenant.cozystack.io/${ns}` : undefined
+
+  const list = useK8sList<TenantNamespace>(
+    {
+      apiGroup: "core.cozystack.io",
+      apiVersion: "v1alpha1",
+      plural: "tenantnamespaces",
+    },
+    { labelSelector }
+  )
 
   const tenants = useMemo<TenantNamespace[]>(() => {
     return (list.data?.items ?? [])
       .slice()
       .sort((a, b) => displayName(a).localeCompare(displayName(b)))
   }, [list.data])
-
-  const [selectedTenant, setSelectedTenant] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null
-    return window.localStorage.getItem(SELECTED_TENANT_KEY)
-  })
 
   useEffect(() => {
     if (!tenants.length) return
@@ -73,13 +80,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const ns = selectedTenant ? `${TENANT_NAMESPACE_PREFIX}${selectedTenant}` : null
-
   const value: TenantContextValue = {
     tenants,
     selectedTenant,
     selectTenant,
-    tenantNamespace: ns,
+    tenantNamespace: list.isLoading ? null : ns,
     isLoading: list.isLoading,
     error: list.error,
   }

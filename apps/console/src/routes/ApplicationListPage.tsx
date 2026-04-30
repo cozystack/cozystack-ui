@@ -62,7 +62,7 @@ export function ApplicationListPage() {
             </p>
           </div>
         </div>
-        <Link to={`/marketplace/${ad.metadata.name}`}>
+        <Link to={`/console/new/${ad.metadata.name}`}>
           <Button variant="primary" size="sm">
             <Plus className="size-3.5" /> Deploy {humanizeKind(kind)}
           </Button>
@@ -77,7 +77,7 @@ export function ApplicationListPage() {
         <Section>
           <div className="py-8 text-center">
             <p className="text-sm text-slate-500">No {pluralLabel.toLowerCase()} yet.</p>
-            <Link to={`/marketplace/${ad.metadata.name}`} className="mt-3 inline-flex">
+            <Link to={`/console/new/${ad.metadata.name}`} className="mt-3 inline-flex">
               <Button variant="primary" size="sm">
                 <Plus className="size-3.5" /> Deploy the first one
               </Button>
@@ -102,7 +102,7 @@ export function ApplicationListPage() {
                   <tr
                     key={inst.metadata.name}
                     onClick={() => navigate(`/console/${plural}/${inst.metadata.name}`)}
-                    className="cursor-pointer hover:bg-slate-50"
+                    className="cursor-pointer transition-colors duration-100 hover:bg-slate-50"
                   >
                     <td className="px-4 py-3 font-mono text-xs text-slate-800">
                       {inst.metadata.name}

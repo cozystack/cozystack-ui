@@ -1,28 +1,62 @@
+import { useMemo } from "react"
 import { Link } from "react-router"
-import { Plus } from "lucide-react"
+import { Plus, Edit } from "lucide-react"
 import { Spinner, Section, Button } from "@cozystack/ui"
-import type { TenantNamespace } from "@cozystack/types"
-import { tenantDisplayName, useTenantContext } from "../lib/tenant-context.tsx"
+import { useK8sList } from "@cozystack/k8s-client"
+import type { Tenant } from "@cozystack/types"
+import { useTenantContext } from "../lib/tenant-context.tsx"
 import { formatAge } from "../lib/status.ts"
 
-const MODULE_LABELS: { key: string; label: string }[] = [
-  { key: "namespace.cozystack.io/etcd", label: "etcd" },
-  { key: "namespace.cozystack.io/ingress", label: "ingress" },
-  { key: "namespace.cozystack.io/monitoring", label: "monitoring" },
-  { key: "namespace.cozystack.io/seaweedfs", label: "seaweedfs" },
-]
-
-function enabledModules(ns: TenantNamespace): string[] {
-  const labels = ns.metadata.labels ?? {}
-  return MODULE_LABELS.filter((m) => labels[m.key] != null).map((m) => m.label)
+interface TenantModule {
+  apiVersion: string
+  kind: string
+  metadata: {
+    name: string
+    namespace: string
+  }
+  status?: {
+    ready?: boolean
+  }
 }
 
-function tenantHost(ns: TenantNamespace): string | undefined {
-  return ns.metadata.labels?.["namespace.cozystack.io/host"]
+function tenantHost(tenant: Tenant): string | undefined {
+  return tenant.spec?.host
 }
 
 export function TenantsPage() {
-  const { tenants, isLoading } = useTenantContext()
+  const { tenantNamespace } = useTenantContext()
+
+  // Get Tenant ApplicationInstances from current tenant namespace
+  const { data: tenantsData, isLoading } = useK8sList<Tenant>(
+    {
+      apiGroup: "apps.cozystack.io",
+      apiVersion: "v1alpha1",
+      plural: "tenants",
+      namespace: tenantNamespace ?? undefined,
+    },
+    { enabled: !!tenantNamespace }
+  )
+
+  const tenants = tenantsData?.items ?? []
+
+  // Get TenantModules from all namespaces to show modules for each tenant
+  const { data: modulesData } = useK8sList<TenantModule>({
+    apiGroup: "core.cozystack.io",
+    apiVersion: "v1alpha1",
+    plural: "tenantmodules",
+  })
+
+  // Group non-info modules by namespace (info is always the default, never shown)
+  const modulesByNamespace = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const mod of modulesData?.items ?? []) {
+      if (mod.metadata.name === "info") continue
+      const ns = mod.metadata.namespace
+      if (!map.has(ns)) map.set(ns, [])
+      map.get(ns)!.push(mod.metadata.name)
+    }
+    return map
+  }, [modulesData])
 
   return (
     <div className="p-6">
@@ -57,20 +91,22 @@ export function TenantsPage() {
                 <th className="px-4 py-3">Host</th>
                 <th className="px-4 py-3">Modules</th>
                 <th className="px-4 py-3">Age</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {tenants.map((t) => {
-                const name = tenantDisplayName(t)
-                const modules = enabledModules(t)
+                const name = t.metadata.name
+                const tenantNs = t.status?.namespace ?? ""
+                const modules = modulesByNamespace.get(tenantNs) ?? []
                 const host = tenantHost(t)
                 return (
-                  <tr key={t.metadata.name} className="hover:bg-slate-50">
+                  <tr key={name} className="hover:bg-slate-50">
                     <td className="px-4 py-3 text-sm font-medium text-slate-900">
                       {name}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                      {t.metadata.name}
+                      {tenantNs || "—"}
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-600">{host ?? "—"}</td>
                     <td className="px-4 py-3">
@@ -91,6 +127,13 @@ export function TenantsPage() {
                     </td>
                     <td className="px-4 py-3 tabular-nums text-xs text-slate-500">
                       {formatAge(t.metadata.creationTimestamp)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link to={`/console/tenants/${name}/edit`}>
+                        <Button variant="outline" size="sm">
+                          <Edit className="size-3" /> Edit
+                        </Button>
+                      </Link>
                     </td>
                   </tr>
                 )

@@ -4,9 +4,6 @@ Cozystack Marketplace and Console UI — a pure SPA that talks directly to the
 Kubernetes API. No BFF, no controller-generated configuration: all UI entities
 are discovered dynamically from `ApplicationDefinitions` in the cluster.
 
-Inspired by [`cozyportal-ui`](https://github.com/aenix-io/cozyportal-ui), but
-scoped to Cozystack resources only (`apps.cozystack.io/v1alpha1`).
-
 ## Structure
 
 - `apps/console` — React + Vite SPA
