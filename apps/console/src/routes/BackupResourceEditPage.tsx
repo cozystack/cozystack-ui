@@ -108,6 +108,14 @@ export function BackupResourceEditPage({
     )
   }
 
+  if (!schema) {
+    return (
+      <div className="p-8 text-red-600">
+        Failed to load schema. Please refresh the page.
+      </div>
+    )
+  }
+
   return (
     <div className="p-6">
       <div className="mb-5 flex items-center gap-3">

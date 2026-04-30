@@ -36,7 +36,7 @@ export function BackupResourceCreatePageWithData({
     apiVersion: "v1alpha1",
     plural: "plans",
     namespace: tenantNamespace ?? "",
-  }, { enabled: !!tenantNamespace && (resourceType === "backupjobs" || resourceType === "restorejobs") })
+  }, { enabled: !!tenantNamespace && resourceType === "backupjobs" })
 
   // Get Backups
   const { data: backupsData } = useK8sList<any>({

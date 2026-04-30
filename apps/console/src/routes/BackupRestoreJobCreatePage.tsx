@@ -84,6 +84,11 @@ export function BackupRestoreJobCreatePage() {
   }, [baseSchema, backupsData, appDefs, instancesData, selectedKind])
 
   const handleSubmit = async () => {
+    if (!tenantNamespace) {
+      alert("Tenant namespace is not available. Please refresh.")
+      return
+    }
+
     if (!name.trim()) {
       alert("Name is required")
       return
