@@ -11,7 +11,6 @@ interface AppShellProps {
   username?: string
   userSettingsUrl?: string
   signOutUrl?: string
-  notificationBell?: ReactNode
   onSearchClick?: () => void
   version?: string
   children?: ReactNode
@@ -26,7 +25,6 @@ export function AppShell({
   username,
   userSettingsUrl,
   signOutUrl,
-  notificationBell,
   onSearchClick,
   version,
   children,
@@ -42,7 +40,6 @@ export function AppShell({
         username={username}
         userSettingsUrl={userSettingsUrl}
         signOutUrl={signOutUrl}
-        notificationBell={notificationBell}
         onSearchClick={onSearchClick}
         version={version}
         scrolled={scrolled}
