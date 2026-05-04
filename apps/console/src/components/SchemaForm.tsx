@@ -5,6 +5,7 @@ import type { RJSFSchema, UiSchema, TemplatesType } from "@rjsf/utils"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
 import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
 import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
+import { ResourceQuotasField } from "./ResourceQuotasField.tsx"
 import { SourceField } from "./SourceField.tsx"
 import "./schema-form.css"
 
@@ -184,12 +185,23 @@ export function SchemaForm({
     const withVMDisk = addVMDiskWidgets(schema, withBackupClass)
 
     // Automatically add AdditionalPropertiesField for fields with additionalProperties schema
-    return addAdditionalPropertiesWidgets(schema, withVMDisk)
+    const withAdditionalProps = addAdditionalPropertiesWidgets(schema, withVMDisk)
+
+    // Override resourceQuotas field with structured quota editor
+    if ((schema as any).properties?.resourceQuotas) {
+      withAdditionalProps.resourceQuotas = {
+        ...withAdditionalProps.resourceQuotas,
+        "ui:field": "ResourceQuotasField",
+      }
+    }
+
+    return withAdditionalProps
   }, [keysOrder, schema])
 
   const customFields = useMemo(
     () => ({
       AdditionalPropertiesField: AdditionalPropertiesField,
+      ResourceQuotasField: ResourceQuotasField,
       SourceField: SourceField,
     }),
     []

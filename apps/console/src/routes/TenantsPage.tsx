@@ -6,6 +6,7 @@ import { useK8sList } from "@cozystack/k8s-client"
 import type { Tenant } from "@cozystack/types"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { formatAge } from "../lib/status.ts"
+import { TenantQuotaCompact } from "../components/QuotaDisplay.tsx"
 
 interface TenantModule {
   apiVersion: string
@@ -90,6 +91,7 @@ export function TenantsPage() {
                 <th className="px-4 py-3">Namespace</th>
                 <th className="px-4 py-3">Host</th>
                 <th className="px-4 py-3">Modules</th>
+                <th className="px-4 py-3">Quotas</th>
                 <th className="px-4 py-3">Age</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -124,6 +126,9 @@ export function TenantsPage() {
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 max-w-xs">
+                      {tenantNs ? <TenantQuotaCompact namespace={tenantNs} /> : <span className="text-xs text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3 tabular-nums text-xs text-slate-500">
                       {formatAge(t.metadata.creationTimestamp)}
