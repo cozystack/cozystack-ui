@@ -187,8 +187,11 @@ export function SchemaForm({
     // Automatically add AdditionalPropertiesField for fields with additionalProperties schema
     const withAdditionalProps = addAdditionalPropertiesWidgets(schema, withVMDisk)
 
-    // Override resourceQuotas field with structured quota editor
-    if ((schema as any).properties?.resourceQuotas) {
+    // Override resourceQuotas field with structured quota editor.
+    // Scoped to schemas where resourceQuotas has additionalProperties: {type: "string"}
+    // (the cozystack-tenants chart shape) to avoid activating on unrelated CRDs.
+    const rqSchema = (schema as any).properties?.resourceQuotas
+    if (rqSchema && rqSchema.additionalProperties?.type === "string") {
       withAdditionalProps.resourceQuotas = {
         ...withAdditionalProps.resourceQuotas,
         "ui:field": "ResourceQuotasField",

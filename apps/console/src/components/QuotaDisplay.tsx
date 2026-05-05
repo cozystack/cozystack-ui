@@ -11,18 +11,22 @@ interface ResourceQuotaStatus {
   used?: Record<string, string>
 }
 
-interface ResourceQuota extends K8sResource<ResourceQuotaSpec, ResourceQuotaStatus> {
+export interface ResourceQuota extends K8sResource<ResourceQuotaSpec, ResourceQuotaStatus> {
   kind: "ResourceQuota"
 }
 
 function parseQuantity(s: string): number {
   if (!s) return 0
   if (s.endsWith("m")) return parseFloat(s) / 1000
+  // Binary SI suffixes (powers of 1024)
   if (s.endsWith("Ki")) return parseFloat(s) * 1024
   if (s.endsWith("Mi")) return parseFloat(s) * 1024 ** 2
   if (s.endsWith("Gi")) return parseFloat(s) * 1024 ** 3
   if (s.endsWith("Ti")) return parseFloat(s) * 1024 ** 4
-  if (s.endsWith("k") || s.endsWith("K")) return parseFloat(s) * 1000
+  if (s.endsWith("Pi")) return parseFloat(s) * 1024 ** 5
+  if (s.endsWith("Ei")) return parseFloat(s) * 1024 ** 6
+  // Decimal SI suffixes (powers of 1000) — Kubernetes uses lowercase k
+  if (s.endsWith("k")) return parseFloat(s) * 1000
   if (s.endsWith("M")) return parseFloat(s) * 1000 ** 2
   if (s.endsWith("G")) return parseFloat(s) * 1000 ** 3
   return parseFloat(s) || 0
@@ -46,7 +50,10 @@ interface QuotaEntry {
   hardRaw: string
   usedNum: number
   hardNum: number
+  /** Capped at 100 for visual gauge rendering */
   pct: number
+  /** Real percentage, may exceed 100 when over-limit */
+  pctReal: number
   display: string
 }
 
@@ -71,27 +78,65 @@ function buildEntries(hard: Record<string, string>, used: Record<string, string>
     const hardNum = parseQuantity(hardRaw)
     const usedNum = parseQuantity(usedRaw)
     if (hardNum <= 0) continue
-    const pct = Math.min(100, (usedNum / hardNum) * 100)
-    entries.push({ label, usedRaw, hardRaw, usedNum, hardNum, pct, display: `${format(usedNum)} / ${format(hardNum)}` })
+    const pctReal = (usedNum / hardNum) * 100
+    const pct = Math.min(100, pctReal)
+    entries.push({ label, usedRaw, hardRaw, usedNum, hardNum, pct, pctReal, display: `${format(usedNum)} / ${format(hardNum)}` })
   }
   return entries
 }
 
+/**
+ * Aggregates multiple ResourceQuota objects for the same namespace following
+ * Kubernetes semantics: the most restrictive hard limit wins (min), and used
+ * is the maximum across all quotas that bound a given key.
+ *
+ * QuotaDisplay reads canonical Kubernetes keys (requests.cpu, limits.memory,
+ * etc.) while the cozystack-tenants chart editor uses short keys (cpu, memory)
+ * that cozy-lib.resources.flatten translates downstream — the asymmetry is
+ * intentional; do not "align" them.
+ */
+function aggregateQuotas(quotas: ResourceQuota[]): { hard: Record<string, string>; used: Record<string, string> } {
+  const hard: Record<string, string> = {}
+  const used: Record<string, string> = {}
+
+  for (const q of quotas) {
+    const qHard = q.status?.hard ?? {}
+    const qUsed = q.status?.used ?? {}
+
+    for (const [key, val] of Object.entries(qHard)) {
+      if (!(key in hard) || parseQuantity(val) < parseQuantity(hard[key])) {
+        hard[key] = val
+      }
+    }
+
+    // Only track used for keys bounded by this specific quota object
+    for (const [key, val] of Object.entries(qUsed)) {
+      if (key in qHard) {
+        if (!(key in used) || parseQuantity(val) > parseQuantity(used[key])) {
+          used[key] = val
+        }
+      }
+    }
+  }
+
+  return { hard, used }
+}
+
 function gaugeStrokeColor(pct: number): string {
   if (pct >= 90) return "#ef4444"
-  if (pct >= 70) return "#f59e0b"
+  if (pct >= 80) return "#f59e0b"
   return "#3b82f6"
 }
 
 function gaugeTrackColor(pct: number): string {
   if (pct >= 90) return "#fee2e2"
-  if (pct >= 70) return "#fef3c7"
+  if (pct >= 80) return "#fef3c7"
   return "#dbeafe"
 }
 
 function gaugeBgClass(pct: number): string {
   if (pct >= 90) return "bg-red-50 ring-1 ring-red-100"
-  if (pct >= 70) return "bg-amber-50 ring-1 ring-amber-100"
+  if (pct >= 80) return "bg-amber-50 ring-1 ring-amber-100"
   return "bg-slate-50 ring-1 ring-slate-100"
 }
 
@@ -150,12 +195,19 @@ function GaugeCard({ entry, index }: GaugeCardProps) {
   const isOver = entry.usedNum > entry.hardNum
 
   return (
-    <div className={`relative flex flex-col items-center gap-1.5 rounded-xl px-3 py-3 ${gaugeBgClass(entry.pct)}`}>
+    <div
+      className={`relative flex flex-col items-center gap-1.5 rounded-xl px-3 py-3 ${gaugeBgClass(entry.pct)}`}
+      role="progressbar"
+      aria-valuenow={Math.round(entry.pctReal)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={`${entry.label}: ${entry.display}`}
+    >
       <div className="relative flex items-center justify-center">
         <ArcGauge pct={entry.pct} size={72} strokeWidth={6} delay={index * 80} />
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-mono text-[13px] font-semibold leading-none" style={{ color: stroke }}>
-            {Math.round(entry.pct)}%
+            {Math.round(entry.pctReal)}%
           </span>
         </div>
         {isOver && (
@@ -193,7 +245,7 @@ export function QuotaBars({ hard, used, compact = false }: QuotaBarsProps) {
                 style={{ width: `${e.pct}%`, backgroundColor: gaugeStrokeColor(e.pct) }}
               />
             </div>
-            <span className="font-mono text-[10px] text-slate-500 shrink-0">{Math.round(e.pct)}%</span>
+            <span className="font-mono text-[10px] text-slate-500 shrink-0">{Math.round(e.pctReal)}%</span>
           </div>
         ))}
       </div>
@@ -233,18 +285,13 @@ export function QuotaPanel({ namespace }: QuotaPanelProps) {
   const quotas = data?.items ?? []
   if (quotas.length === 0) return null
 
-  const hard: Record<string, string> = {}
-  const used: Record<string, string> = {}
-  for (const q of quotas) {
-    Object.assign(hard, q.status?.hard ?? {})
-    Object.assign(used, q.status?.used ?? {})
-  }
+  const { hard, used } = aggregateQuotas(quotas)
 
   const entries = buildEntries(hard, used)
   if (entries.length === 0) return null
 
   const hasCritical = entries.some((e) => e.pct >= 90)
-  const hasWarning = entries.some((e) => e.pct >= 70)
+  const hasWarning = entries.some((e) => e.pct >= 80)
 
   return (
     <div className={`rounded-xl border p-4 ${hasCritical ? "border-red-200" : hasWarning ? "border-amber-200" : "border-slate-200"} bg-white`}>
@@ -269,20 +316,15 @@ export function QuotaPanel({ namespace }: QuotaPanelProps) {
   )
 }
 
-export function TenantQuotaCompact({ namespace }: { namespace: string }) {
-  const { data, isLoading } = useK8sList<ResourceQuota>(
-    { apiGroup: "", apiVersion: "v1", plural: "resourcequotas", namespace },
-    { enabled: !!namespace }
-  )
+interface TenantQuotaCompactProps {
+  /** Pre-fetched ResourceQuota objects for this tenant's namespace. */
+  quotas: ResourceQuota[]
+}
 
-  if (isLoading || !data?.items?.length) return <span className="text-xs text-slate-400">—</span>
+export function TenantQuotaCompact({ quotas }: TenantQuotaCompactProps) {
+  if (!quotas.length) return <span className="text-xs text-slate-400">—</span>
 
-  const hard: Record<string, string> = {}
-  const used: Record<string, string> = {}
-  for (const q of data.items) {
-    Object.assign(hard, q.status?.hard ?? {})
-    Object.assign(used, q.status?.used ?? {})
-  }
+  const { hard, used } = aggregateQuotas(quotas)
 
   const entries = buildEntries(hard, used)
   if (entries.length === 0) return <span className="text-xs text-slate-400">—</span>
