@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Maximize2, Minimize2, Power, RotateCcw, Terminal } from "lucide-react"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
 
@@ -20,10 +20,10 @@ export function VncTab({ ad, instance }: VncTabProps) {
   const [connectionKey, setConnectionKey] = useState(0)
   const [desktopSize, setDesktopSize] = useState<{ width: number; height: number } | null>(null)
 
-  const connect = useCallback(() => {
-    const el = containerRef.current
-    if (!el || appKind !== "VMInstance") return
+  useEffect(() => {
+    if (!containerRef.current || appKind !== "VMInstance") return
 
+    const el = containerRef.current
     while (el.firstChild) el.removeChild(el.firstChild)
 
     setLoading(true)
@@ -34,15 +34,22 @@ export function VncTab({ ad, instance }: VncTabProps) {
     const vmiName = `vm-instance-${instance.metadata.name}`
     const wsUrl = `${wsProtocol}//${window.location.host}/k8s/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${vmiName}/vnc`
 
+    // Prevent stale import resolutions from firing after cleanup or reconnect
+    let cancelled = false
+
     import("@novnc/novnc/lib/rfb").then((module) => {
-      if (!containerRef.current) return
+      if (cancelled || !containerRef.current) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const RFB = (module as any).default?.default ?? module.default
       try {
         const rfb = new RFB(el, wsUrl, { credentials: {} })
         rfb.scaleViewport = true
         rfb.resizeSession = false
 
+        // Guard each handler: if rfbRef was replaced by a newer session, ignore
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rfb.addEventListener("connect", () => {
+          if (rfbRef.current !== rfb) return
           setLoading(false)
           setConnected(true)
           setError(null)
@@ -52,13 +59,17 @@ export function VncTab({ ad, instance }: VncTabProps) {
           })
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rfb.addEventListener("disconnect", (e: any) => {
+          if (rfbRef.current !== rfb) return
           setConnected(false)
           setLoading(false)
           if (!e.detail?.clean) setError(`Connection lost: ${e.detail?.reason ?? "unknown"}`)
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rfb.addEventListener("securityfailure", (e: any) => {
+          if (rfbRef.current !== rfb) return
           setConnected(false)
           setLoading(false)
           setError(`Security failure: ${e.detail?.status ?? "authentication failed"}`)
@@ -66,24 +77,26 @@ export function VncTab({ ad, instance }: VncTabProps) {
 
         rfbRef.current = rfb
       } catch (err) {
-        setLoading(false)
-        setError(`Failed to initialize VNC: ${(err as Error).message}`)
+        if (!cancelled) {
+          setLoading(false)
+          setError(`Failed to initialize VNC: ${(err as Error).message}`)
+        }
       }
     }).catch((err) => {
-      setLoading(false)
-      setError(`Failed to load VNC library: ${err.message}`)
+      if (!cancelled) {
+        setLoading(false)
+        setError(`Failed to load VNC library: ${err.message}`)
+      }
     })
-  }, [appKind, ns, instance.metadata.name, connectionKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    connect()
     return () => {
+      cancelled = true
       if (rfbRef.current) {
         try { rfbRef.current.disconnect() } catch {}
         rfbRef.current = null
       }
     }
-  }, [connect])
+  }, [appKind, ns, instance.metadata.name, connectionKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handler = () => setFullscreen(!!document.fullscreenElement)

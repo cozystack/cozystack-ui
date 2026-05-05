@@ -175,6 +175,7 @@ export function ApplicationOrderPage({
             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
               <button
                 type="button"
+                aria-pressed={mode === "form"}
                 onClick={() => (mode === "yaml" ? enterForm() : undefined)}
                 className={cn(
                   "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
@@ -187,6 +188,7 @@ export function ApplicationOrderPage({
               </button>
               <button
                 type="button"
+                aria-pressed={mode === "yaml"}
                 onClick={() => (mode === "form" ? enterYaml() : undefined)}
                 className={cn(
                   "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",

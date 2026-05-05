@@ -98,10 +98,13 @@
 }
 /* Spinner arrows hidden for port-number inputs — value is exact, arrows add noise */
 .rjsf-container .field-array-of-integer input[type="number"]::-webkit-inner-spin-button,
-.rjsf-container .field-array-of-integer input[type="number"]::-webkit-outer-spin-button {
+.rjsf-container .field-array-of-integer input[type="number"]::-webkit-outer-spin-button,
+.rjsf-container .field-array-of-number input[type="number"]::-webkit-inner-spin-button,
+.rjsf-container .field-array-of-number input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-.rjsf-container .field-array-of-integer input[type="number"] {
+.rjsf-container .field-array-of-integer input[type="number"],
+.rjsf-container .field-array-of-number input[type="number"] {
   -moz-appearance: textfield;
 }
