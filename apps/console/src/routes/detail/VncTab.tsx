@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Monitor } from "lucide-react"
-import { Section, Spinner } from "@cozystack/ui"
+import { Maximize2, Minimize2, Power, RotateCcw, Terminal } from "lucide-react"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
 
 interface VncTabProps {
@@ -11,222 +10,274 @@ interface VncTabProps {
 export function VncTab({ ad, instance }: VncTabProps) {
   const ns = instance.metadata.namespace
   const appKind = ad.spec?.application.kind
-  const [error, setError] = useState<string | null>(null)
-  const [connecting, setConnecting] = useState(true)
-  const [connected, setConnected] = useState(false)
-  const vncContainerRef = useRef<HTMLDivElement>(null)
+
+  const containerRef = useRef<HTMLDivElement>(null)
   const rfbRef = useRef<any>(null)
+  const [connected, setConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  const [connectionKey, setConnectionKey] = useState(0)
+  const [desktopSize, setDesktopSize] = useState<{ width: number; height: number } | null>(null)
 
   useEffect(() => {
-    if (appKind !== "VMInstance" || !vncContainerRef.current) return
+    if (!containerRef.current || appKind !== "VMInstance") return
 
-    let mounted = true
+    const el = containerRef.current
+    while (el.firstChild) el.removeChild(el.firstChild)
 
-    // Build WebSocket URL using current location
-    // KubeVirt VMI name has "vm-instance-" prefix added by Cozystack
-    // Use /k8s prefix for proper nginx routing (old dashboard compatibility)
+    setLoading(true)
+    setError(null)
+    setConnected(false)
+
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:"
     const vmiName = `vm-instance-${instance.metadata.name}`
     const wsUrl = `${wsProtocol}//${window.location.host}/k8s/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${vmiName}/vnc`
 
-    // Dynamically import RFB
-    // noVNC is CJS: Vite wraps module.exports as .default, so RFB is at .default.default
+    // Prevent stale import resolutions from firing after cleanup or reconnect
+    let cancelled = false
+
     import("@novnc/novnc/lib/rfb").then((module) => {
-      if (!mounted || !vncContainerRef.current) return
-
+      if (cancelled || !containerRef.current) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const RFB = (module as any).default?.default ?? module.default
-
       try {
-        // Initialize noVNC RFB client
-        const rfb = new RFB(vncContainerRef.current, wsUrl, {
-          credentials: {},
-        })
-
-        // Set scaling mode
+        const rfb = new RFB(el, wsUrl, { credentials: {} })
         rfb.scaleViewport = true
         rfb.resizeSession = false
 
-        // Event handlers
+        // Guard each handler: if rfbRef was replaced by a newer session, ignore
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rfb.addEventListener("connect", () => {
-          if (mounted) {
-            setConnecting(false)
-            setConnected(true)
-            setError(null)
-          }
+          if (rfbRef.current !== rfb) return
+          setLoading(false)
+          setConnected(true)
+          setError(null)
+          requestAnimationFrame(() => {
+            const canvas = el.querySelector("canvas")
+            if (canvas) setDesktopSize({ width: canvas.width, height: canvas.height })
+          })
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rfb.addEventListener("disconnect", (e: any) => {
-          if (mounted) {
-            setConnecting(false)
-            setConnected(false)
-            if (!e.detail.clean) {
-              setError(`Disconnected: ${e.detail.reason || "unknown reason"}`)
-            }
-          }
+          if (rfbRef.current !== rfb) return
+          setConnected(false)
+          setLoading(false)
+          if (!e.detail?.clean) setError(`Connection lost: ${e.detail?.reason ?? "unknown"}`)
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rfb.addEventListener("securityfailure", (e: any) => {
-          if (mounted) {
-            setConnecting(false)
-            setConnected(false)
-            setError(`Security failure: ${e.detail.status || "authentication failed"}`)
-          }
+          if (rfbRef.current !== rfb) return
+          setConnected(false)
+          setLoading(false)
+          setError(`Security failure: ${e.detail?.status ?? "authentication failed"}`)
         })
 
         rfbRef.current = rfb
       } catch (err) {
-        if (mounted) {
-          setConnecting(false)
+        if (!cancelled) {
+          setLoading(false)
           setError(`Failed to initialize VNC: ${(err as Error).message}`)
         }
       }
     }).catch((err) => {
-      if (mounted) {
-        setConnecting(false)
+      if (!cancelled) {
+        setLoading(false)
         setError(`Failed to load VNC library: ${err.message}`)
       }
     })
 
-    // Cleanup on unmount
     return () => {
-      mounted = false
+      cancelled = true
       if (rfbRef.current) {
-        rfbRef.current.disconnect()
+        try { rfbRef.current.disconnect() } catch {}
         rfbRef.current = null
       }
     }
-  }, [appKind, ns, instance.metadata.name])
+  }, [appKind, ns, instance.metadata.name, connectionKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const handler = () => setFullscreen(!!document.fullscreenElement)
+    document.addEventListener("fullscreenchange", handler)
+    return () => document.removeEventListener("fullscreenchange", handler)
+  }, [])
 
   if (appKind !== "VMInstance") {
     return (
-      <div className="p-6">
-        <Section>
+      <div className="flex h-full items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <Terminal className="h-8 w-8 text-slate-300" />
           <p className="text-sm text-slate-500">VNC is only available for VMInstance.</p>
-        </Section>
+        </div>
       </div>
     )
   }
 
-  const handleCtrlAltDel = () => {
-    if (rfbRef.current) {
-      rfbRef.current.sendCtrlAltDel()
-    }
-  }
-
-  const handleDisconnect = () => {
-    if (rfbRef.current) {
-      rfbRef.current.disconnect()
+  const handleFullscreen = () => {
+    const wrapper = containerRef.current?.parentElement
+    if (!wrapper) return
+    if (!document.fullscreenElement) {
+      wrapper.requestFullscreen()
+    } else {
+      document.exitFullscreen()
     }
   }
 
   const handleReconnect = () => {
-    // Disconnect previous client before clearing container
     if (rfbRef.current) {
-      rfbRef.current.disconnect()
+      try { rfbRef.current.disconnect() } catch {}
       rfbRef.current = null
     }
-
-    if (vncContainerRef.current) {
-      vncContainerRef.current.innerHTML = ""
-      setConnecting(true)
-      setError(null)
-
-      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-      const vmiName = `vm-instance-${instance.metadata.name}`
-      const wsUrl = `${wsProtocol}//${window.location.host}/k8s/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${vmiName}/vnc`
-
-      import("@novnc/novnc/lib/rfb").then((module) => {
-        if (!vncContainerRef.current) return
-
-        const RFB = (module as any).default?.default ?? module.default
-
-        try {
-          const rfb = new RFB(vncContainerRef.current, wsUrl, { credentials: {} })
-          rfb.scaleViewport = true
-          rfb.resizeSession = false
-
-          rfb.addEventListener("connect", () => {
-            setConnecting(false)
-            setConnected(true)
-            setError(null)
-          })
-
-          rfb.addEventListener("disconnect", (e: any) => {
-            setConnecting(false)
-            setConnected(false)
-            if (!e.detail.clean) {
-              setError(`Disconnected: ${e.detail.reason || "unknown reason"}`)
-            }
-          })
-
-          rfb.addEventListener("securityfailure", (e: any) => {
-            setConnecting(false)
-            setConnected(false)
-            setError(`Security failure: ${e.detail.status || "authentication failed"}`)
-          })
-
-          rfbRef.current = rfb
-        } catch (err) {
-          setConnecting(false)
-          setError(`Failed to reconnect: ${(err as Error).message}`)
-        }
-      }).catch((err) => {
-        setConnecting(false)
-        setError(`Failed to load VNC library: ${err.message}`)
-      })
-    }
+    setConnectionKey((k) => k + 1)
   }
 
+  const statusColor = connected
+    ? "bg-emerald-500"
+    : loading
+      ? "bg-amber-400"
+      : "bg-red-500"
+
+  const statusLabel = connected ? "Connected" : loading ? "Connecting…" : "Disconnected"
+
   return (
-    <div className="flex h-full flex-col p-6">
-      <Section
-        title={
-          <span className="inline-flex items-center gap-2">
-            <Monitor className="size-4 text-slate-500" /> VNC Console
-          </span>
-        }
-      >
-        <div className="mt-4 flex flex-col gap-3">
-          {connecting && (
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Spinner /> Connecting to VNC...
+    <div className="flex h-full flex-col p-4">
+      {/* Outer panel — shadow bridges the light page and dark terminal */}
+      <div className="flex flex-1 flex-col overflow-hidden rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-slate-900/8">
+
+        {/* ── Toolbar ── */}
+        <div className="flex shrink-0 items-center justify-between bg-[#1e2330] px-3 py-2">
+
+          {/* Left: status pill + vm name */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className={`relative flex h-2 w-2`}>
+                {connected && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                )}
+                <span className={`relative inline-flex h-2 w-2 rounded-full ${statusColor}`} />
+              </span>
+              <span className="text-[11px] font-medium tracking-wide text-slate-400">
+                {statusLabel}
+              </span>
             </div>
-          )}
-          {error && (
-            <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-              <strong>Connection Error:</strong> {error}
+
+            <div className="h-3.5 w-px bg-slate-700" />
+
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+              <Terminal className="h-3 w-3" />
+              <span className="font-mono">{instance.metadata.name}</span>
             </div>
-          )}
-          <div
-            ref={vncContainerRef}
-            className="rounded-lg border border-slate-200 bg-black overflow-hidden"
-            style={{ height: "calc(100vh - 320px)", width: "100%" }}
-          />
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCtrlAltDel}
-              disabled={!connected}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          </div>
+
+          {/* Right: action buttons */}
+          <div className="flex items-center gap-0.5">
+            {connected && (
+              <ToolbarButton
+                onClick={() => rfbRef.current?.sendCtrlAltDel()}
+                title="Ctrl+Alt+Del"
+              >
+                <Power className="h-3.5 w-3.5" />
+              </ToolbarButton>
+            )}
+
+            <div className="mx-1 h-3.5 w-px bg-slate-700" />
+
+            <ToolbarButton
+              onClick={handleFullscreen}
+              title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
             >
-              Ctrl+Alt+Del
-            </button>
-            <button
-              onClick={handleDisconnect}
-              disabled={!connected}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Disconnect
-            </button>
-            <button
+              {fullscreen
+                ? <Minimize2 className="h-3.5 w-3.5" />
+                : <Maximize2 className="h-3.5 w-3.5" />}
+            </ToolbarButton>
+
+            <ToolbarButton
               onClick={handleReconnect}
-              disabled={connecting}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+              title="Reconnect"
             >
-              Reconnect
-            </button>
+              <RotateCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            </ToolbarButton>
           </div>
         </div>
-      </Section>
+
+        {/* ── Canvas area ── */}
+        <div
+          className="relative flex-1 overflow-hidden bg-black"
+          style={desktopSize
+            ? { aspectRatio: `${desktopSize.width} / ${desktopSize.height}`, width: "100%", flex: "unset" }
+            : undefined}
+        >
+          {/* Loading overlay */}
+          {loading && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#0d0f14]">
+              <div className="flex gap-1">
+                {[0, 1, 2].map((i) => (
+                  <span
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full bg-slate-600 animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  />
+                ))}
+              </div>
+              <p className="text-[11px] font-medium tracking-widest text-slate-600 uppercase">
+                Connecting
+              </p>
+            </div>
+          )}
+
+          {/* Error overlay */}
+          {error && !loading && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#0d0f14] p-8">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-900/40 ring-1 ring-red-800/60">
+                <Terminal className="h-5 w-5 text-red-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-red-400">Connection failed</p>
+                <p className="mt-1 text-xs text-slate-600">{error}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleReconnect}
+                className="flex items-center gap-1.5 rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-700 transition-colors hover:bg-slate-700 hover:text-white"
+              >
+                <RotateCcw className="h-3 w-3" /> Reconnect
+              </button>
+            </div>
+          )}
+
+          <div ref={containerRef} className="absolute inset-0" />
+        </div>
+      </div>
     </div>
+  )
+}
+
+function ToolbarButton({
+  onClick,
+  title,
+  disabled,
+  label,
+  children,
+}: {
+  onClick: () => void
+  title: string
+  disabled?: boolean
+  label?: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="flex items-center gap-1 rounded px-1.5 py-1 text-slate-500 transition-colors hover:bg-slate-700/60 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-30"
+    >
+      {children}
+      {label && <span className="text-[10px] font-medium">{label}</span>}
+    </button>
   )
 }

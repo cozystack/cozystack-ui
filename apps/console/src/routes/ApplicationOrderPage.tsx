@@ -172,27 +172,29 @@ export function ApplicationOrderPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
               <button
                 type="button"
+                aria-pressed={mode === "form"}
                 onClick={() => (mode === "yaml" ? enterForm() : undefined)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
                   mode === "form"
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
+                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-500 hover:text-slate-700",
                 )}
               >
                 <FormInput className="size-3.5" /> Form
               </button>
               <button
                 type="button"
+                aria-pressed={mode === "yaml"}
                 onClick={() => (mode === "form" ? enterYaml() : undefined)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
                   mode === "yaml"
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
+                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-500 hover:text-slate-700",
                 )}
               >
                 <FileCode className="size-3.5" /> YAML
@@ -220,10 +222,10 @@ export function ApplicationOrderPage({
       </div>
 
       {mode === "form" ? (
-        <div className="flex-1 overflow-auto bg-slate-50 p-6">
-          <div className="mx-auto max-w-3xl space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+        <div className="flex-1 overflow-auto bg-slate-50 p-4">
+          <div className="space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <label className="mb-1 block text-xs font-medium text-slate-600">
                 Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -232,7 +234,7 @@ export function ApplicationOrderPage({
                 onChange={(e) => setName(e.target.value)}
                 disabled={!!editMode}
                 placeholder={ad.spec?.application.singular ?? "name"}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-500"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50 disabled:text-slate-400"
               />
               {tenantNamespace && (
                 <p className="mt-1.5 text-xs text-slate-500">
@@ -241,7 +243,7 @@ export function ApplicationOrderPage({
               )}
             </div>
             {ad.spec?.application.openAPISchema && (
-              <div className="rounded-lg border border-slate-200 bg-white p-5">
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <SchemaForm
                   openAPISchema={ad.spec.application.openAPISchema}
                   keysOrder={ad.spec?.dashboard?.keysOrder}

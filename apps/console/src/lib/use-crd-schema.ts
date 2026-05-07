@@ -2,6 +2,7 @@ import { useK8sGet } from "@cozystack/k8s-client"
 
 interface CRDVersion {
   name: string
+  storage?: boolean
   schema?: {
     openAPIV3Schema?: {
       properties?: {
