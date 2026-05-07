@@ -6,6 +6,8 @@ import { useK8sList } from "@cozystack/k8s-client"
 import type { Tenant } from "@cozystack/types"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { formatAge } from "../lib/status.ts"
+import { TenantQuotaCompact } from "../components/QuotaDisplay.tsx"
+import type { ResourceQuota } from "../components/QuotaDisplay.tsx"
 
 interface TenantModule {
   apiVersion: string
@@ -46,6 +48,13 @@ export function TenantsPage() {
     plural: "tenantmodules",
   })
 
+  // Cluster-wide ResourceQuota list — one watch instead of N per row
+  const { data: quotasData } = useK8sList<ResourceQuota>({
+    apiGroup: "",
+    apiVersion: "v1",
+    plural: "resourcequotas",
+  })
+
   // Group non-info modules by namespace (info is always the default, never shown)
   const modulesByNamespace = useMemo(() => {
     const map = new Map<string, string[]>()
@@ -57,6 +66,16 @@ export function TenantsPage() {
     }
     return map
   }, [modulesData])
+
+  const quotasByNamespace = useMemo(() => {
+    const map = new Map<string, ResourceQuota[]>()
+    for (const q of quotasData?.items ?? []) {
+      const ns = q.metadata.namespace ?? ""
+      if (!map.has(ns)) map.set(ns, [])
+      map.get(ns)!.push(q)
+    }
+    return map
+  }, [quotasData])
 
   return (
     <div className="p-6">
@@ -90,6 +109,7 @@ export function TenantsPage() {
                 <th className="px-4 py-3">Namespace</th>
                 <th className="px-4 py-3">Host</th>
                 <th className="px-4 py-3">Modules</th>
+                <th className="px-4 py-3">Quotas</th>
                 <th className="px-4 py-3">Age</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -99,6 +119,7 @@ export function TenantsPage() {
                 const name = t.metadata.name
                 const tenantNs = t.status?.namespace ?? ""
                 const modules = modulesByNamespace.get(tenantNs) ?? []
+                const tenantQuotas = quotasByNamespace.get(tenantNs) ?? []
                 const host = tenantHost(t)
                 return (
                   <tr key={name} className="hover:bg-slate-50">
@@ -124,6 +145,9 @@ export function TenantsPage() {
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 max-w-xs">
+                      <TenantQuotaCompact quotas={tenantQuotas} />
                     </td>
                     <td className="px-4 py-3 tabular-nums text-xs text-slate-500">
                       {formatAge(t.metadata.creationTimestamp)}
