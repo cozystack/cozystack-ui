@@ -23,3 +23,14 @@ export async function loadConfig(): Promise<AppConfig> {
     return {}
   }
 }
+
+export async function loadUsername(): Promise<string | undefined> {
+  try {
+    const resp = await fetch("/oauth2/userinfo")
+    if (!resp.ok) return undefined
+    const info = await resp.json() as { user?: string; email?: string }
+    return info.email ?? info.user ?? undefined
+  } catch {
+    return undefined
+  }
+}

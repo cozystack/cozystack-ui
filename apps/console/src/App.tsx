@@ -14,9 +14,10 @@ import type { AppConfig } from "./lib/config.ts"
 
 interface ShellProps {
   config: AppConfig
+  username?: string
 }
 
-function Shell({ config }: ShellProps) {
+function Shell({ config, username }: ShellProps) {
   const { pathname } = useLocation()
   const inMarketplace = pathname.startsWith("/marketplace")
   const marketplaceSections = useMarketplaceSidebarSections()
@@ -32,6 +33,7 @@ function Shell({ config }: ShellProps) {
       version={import.meta.env.VITE_APP_VERSION}
       logoSvg={config.logoSvg}
       logoText={config.logoText}
+      username={username}
     >
       <CommandPalette />
       <Routes>
@@ -45,13 +47,14 @@ function Shell({ config }: ShellProps) {
 
 export interface AppProps {
   config?: AppConfig
+  username?: string
 }
 
-export default function App({ config = {} }: AppProps) {
+export default function App({ config = {}, username }: AppProps) {
   return (
     <TenantProvider>
       <CommandPaletteProvider>
-        <Shell config={config} />
+        <Shell config={config} username={username} />
       </CommandPaletteProvider>
     </TenantProvider>
   )
