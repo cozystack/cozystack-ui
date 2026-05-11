@@ -1,8 +1,12 @@
 import type { ComponentType } from "react"
 import {
+  Database,
+  Globe,
   HardDrive,
+  Info,
   Monitor,
   Network,
+  Server,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -33,6 +37,7 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
 
   // NaaS
   HTTPCache: "nginx",
+  TCPBalancer: "haproxy",
   VPN: "wireguard",
 
   // Administration
@@ -40,6 +45,7 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
   Ingress: "nginx",
   Kubernetes: "kubernetes",
   Monitoring: "prometheus",
+  OpenSearch: "opensearch",
 }
 
 /**
@@ -47,10 +53,15 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
  * Simple Icons. These use the same pack as cozyportal-ui.
  */
 const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon | ComponentType<{ className?: string }>> = {
-  VMInstance: Monitor,
-  VMDisk: HardDrive,
-  VirtualPrivateCloud: Network,
+  BootBox: Server,
+  ExternalDNS: Globe,
+  FoundationDB: Database,
+  Info: Info,
+  SeaweedFS: Database,
   Tenant: Users,
+  VirtualPrivateCloud: Network,
+  VMDisk: HardDrive,
+  VMInstance: Monitor,
 }
 
 export function simpleIconSlug(kind: string): string | undefined {
