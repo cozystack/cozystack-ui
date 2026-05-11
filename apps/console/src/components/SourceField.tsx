@@ -1,10 +1,54 @@
 import { useState } from "react"
 import type { FieldProps } from "@rjsf/utils"
+import { useK8sList } from "@cozystack/k8s-client"
+import { APPS_GROUP, APPS_VERSION } from "@cozystack/types"
+import { useTenantContext } from "../lib/tenant-context.tsx"
+
+const IMAGE_PVC_PREFIX = "vm-default-images-"
+
+interface VMDisk {
+  apiVersion: string
+  kind: string
+  metadata: { name: string; namespace: string }
+  spec: { storage: string }
+}
+
+interface PVC {
+  apiVersion: string
+  kind: string
+  metadata: { name: string; namespace: string }
+}
+
+function useVMDiskOptions(tenantNamespace: string | null | undefined) {
+  const { data, isLoading } = useK8sList<VMDisk>({
+    apiGroup: APPS_GROUP,
+    apiVersion: APPS_VERSION,
+    plural: "vmdisks",
+    namespace: tenantNamespace ?? undefined,
+  })
+  return { disks: data?.items ?? [], isLoading }
+}
+
+function useImageOptions() {
+  const { data, isLoading } = useK8sList<PVC>({
+    apiGroup: "",
+    apiVersion: "v1",
+    plural: "persistentvolumeclaims",
+    namespace: "cozy-public",
+  })
+  const images = (data?.items ?? [])
+    .filter((pvc) => pvc.metadata.name.startsWith(IMAGE_PVC_PREFIX))
+    .map((pvc) => pvc.metadata.name.slice(IMAGE_PVC_PREFIX.length))
+  return { images, isLoading }
+}
 
 export function SourceField(props: FieldProps) {
   const { schema, formData, onChange, name, required, idSchema } = props
   const properties = (schema as any).properties || {}
   const options = Object.keys(properties)
+  const { tenantNamespace } = useTenantContext()
+  const { disks, isLoading: disksLoading } = useVMDiskOptions(tenantNamespace)
+  const { images, isLoading: imagesLoading } = useImageOptions()
 
   // Determine which option is currently selected
   const currentOption = formData
@@ -59,31 +103,79 @@ export function SourceField(props: FieldProps) {
     const subProps = prop.properties || {}
     return (
       <div className="ml-6 mt-2 space-y-2">
-        {Object.entries(subProps).map(([key, subProp]: [string, any]) => (
-          <div key={key} className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-slate-700">
-              {subProp.title || key}
-              {prop.required?.includes(key) && <span className="text-red-500 ml-1">*</span>}
-            </label>
-            {subProp.description && (
-              <p className="text-xs text-slate-500">{subProp.description}</p>
-            )}
-            <input
-              type="text"
-              value={(formData?.[option] as Record<string, string>)?.[key] || ""}
-              onChange={(e) => {
-                onChange({
-                  [option]: {
-                    ...(formData?.[option] as Record<string, unknown>),
-                    [key]: e.target.value,
-                  },
-                })
-              }}
-              placeholder={subProp.title || key}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
-            />
-          </div>
-        ))}
+        {Object.entries(subProps).map(([key, subProp]: [string, any]) => {
+          const currentValue = (formData?.[option] as Record<string, string>)?.[key] || ""
+          const handleChange = (val: string) => {
+            onChange({
+              [option]: {
+                ...(formData?.[option] as Record<string, unknown>),
+                [key]: val,
+              },
+            })
+          }
+
+          const isDiskName = option === "disk" && key === "name"
+          const isImageName = option === "image" && key === "name"
+
+          return (
+            <div key={key} className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">
+                {subProp.title || key}
+                {prop.required?.includes(key) && <span className="text-red-500 ml-1">*</span>}
+              </label>
+              {subProp.description && (
+                <p className="text-xs text-slate-500">{subProp.description}</p>
+              )}
+              {isDiskName ? (
+                <select
+                  value={currentValue}
+                  onChange={(e) => handleChange(e.target.value)}
+                  disabled={disksLoading}
+                  className="w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
+                >
+                  <option value="">-- Select disk --</option>
+                  {disksLoading ? (
+                    <option value="" disabled>Loading...</option>
+                  ) : disks.length === 0 ? (
+                    <option value="" disabled>No disks available</option>
+                  ) : (
+                    disks.map((disk) => (
+                      <option key={disk.metadata.name} value={disk.metadata.name}>
+                        {disk.metadata.name} ({disk.spec.storage})
+                      </option>
+                    ))
+                  )}
+                </select>
+              ) : isImageName ? (
+                <select
+                  value={currentValue}
+                  onChange={(e) => handleChange(e.target.value)}
+                  disabled={imagesLoading}
+                  className="w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
+                >
+                  <option value="">-- Select image --</option>
+                  {imagesLoading ? (
+                    <option value="" disabled>Loading...</option>
+                  ) : images.length === 0 ? (
+                    <option value="" disabled>No images available</option>
+                  ) : (
+                    images.map((img) => (
+                      <option key={img} value={img}>{img}</option>
+                    ))
+                  )}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={currentValue}
+                  onChange={(e) => handleChange(e.target.value)}
+                  placeholder={subProp.title || key}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
     )
   }
