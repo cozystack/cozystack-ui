@@ -146,11 +146,13 @@ export function ApplicationDetailPage() {
               </p>
               <h1 className="text-lg font-semibold text-slate-900">{name}</h1>
             </div>
-            {ready && (
+            {instance?.metadata.deletionTimestamp ? (
+              <StatusBadge tone="muted">Terminating</StatusBadge>
+            ) : ready ? (
               <StatusBadge tone={ready.status === "True" ? "ok" : "warn"}>
                 {ready.status === "True" ? "Ready" : (ready.reason ?? "NotReady")}
               </StatusBadge>
-            )}
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <Link to={`/console/${plural}/${name}/edit`}>
