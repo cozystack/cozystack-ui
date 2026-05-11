@@ -37,7 +37,6 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
 
   // NaaS
   HTTPCache: "nginx",
-  TCPBalancer: "haproxy",
   VPN: "wireguard",
 
   // Administration
@@ -55,6 +54,7 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
 const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon | ComponentType<{ className?: string }>> = {
   BootBox: Server,
   ExternalDNS: Globe,
+  TCPBalancer: Network,
   FoundationDB: Database,
   Info: Info,
   SeaweedFS: Database,
