@@ -106,15 +106,17 @@ function ModuleCard({
   const plural = ad.spec?.application.plural ?? ad.metadata.name
   const singletonName = installed?.metadata.name ?? kind.toLowerCase()
   const enabled = !!installed
+  const canNavigate = enabled || !!tenantName
   const target = enabled
     ? `/console/${plural}/${singletonName}`
-    : `/console/tenants/${tenantName ?? "root"}/edit`
+    : `/console/tenants/${tenantName}/edit`
   const icon = iconDataUrl(ad)
 
   return (
     <Link
-      to={target}
-      className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition-shadow hover:shadow-sm"
+      to={canNavigate ? target : "#"}
+      aria-disabled={!canNavigate}
+      className={`flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition-shadow ${canNavigate ? "hover:shadow-sm" : "opacity-50 cursor-not-allowed pointer-events-none"}`}
     >
       <div className="size-10 shrink-0 overflow-hidden rounded-md bg-slate-100">
         {icon ? <img src={icon} alt="" className="h-full w-full" /> : null}

@@ -33,16 +33,17 @@ export function VMDiskWidget(props: WidgetProps) {
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
 
-  // Auto-select first disk if required and no value set.
-  // `disks` is intentionally omitted from deps: a new array reference from k8s watch
-  // would otherwise re-run this effect and overwrite a user's selection.
-  // `onChange` is also excluded — it changes reference every render.
+  // Auto-select the first disk once when disks become available and no value is set.
+  // A ref prevents re-triggering on every k8s watch event (new array reference)
+  // while still firing correctly when the list loads after mount.
+  const autoSelectedRef = useRef(false)
   useEffect(() => {
+    if (autoSelectedRef.current) return
     if (required && !value && disks.length > 0 && !isLoading) {
+      autoSelectedRef.current = true
       onChangeRef.current(disks[0].metadata.name)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [required, value, isLoading])
+  }, [required, value, disks, isLoading])
 
   return (
     <select

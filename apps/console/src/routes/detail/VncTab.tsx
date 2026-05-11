@@ -130,6 +130,7 @@ export function VncTab({ ad, instance }: VncTabProps) {
       try { rfbRef.current.disconnect() } catch {}
       rfbRef.current = null
     }
+    setDesktopSize(null)
     setConnectionKey((k) => k + 1)
   }
 
