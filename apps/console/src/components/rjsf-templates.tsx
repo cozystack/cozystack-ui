@@ -19,7 +19,8 @@ function IconButton<
   S extends StrictRJSFSchema = RJSFSchema,
   F extends FormContextType = any,
 >(props: IconButtonProps<T, S, F>) {
-  const { icon, className, ...btnProps } = props
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { icon, className, uiSchema, registry, iconType, ...btnProps } = props
   return (
     <button
       type="button"
@@ -70,7 +71,7 @@ export const customTemplates = {
       <IconButton
         {...props}
         icon="+ add"
-        className="mt-0.5 flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-500 hover:text-blue-600 rounded-md border border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/60 bg-white transition-all duration-150"
+        className="mt-0.5 flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-500 hover:text-blue-600 rounded-md border border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/60 bg-white transition-all duration-150 cursor-pointer"
       />
     ),
     RemoveButton: (props: IconButtonProps) => (

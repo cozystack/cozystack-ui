@@ -141,7 +141,6 @@ export function ApplicationOrderPage({
   const icon = iconDataUrl(ad)
   const displayName = appDisplayName(ad)
   const description = ad.spec?.dashboard?.description
-
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-slate-200 bg-white px-6 pt-4 pb-3">

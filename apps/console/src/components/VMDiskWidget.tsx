@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import type { WidgetProps } from "@rjsf/utils"
 import { useK8sList } from "@cozystack/k8s-client"
 import { APPS_GROUP, APPS_VERSION } from "@cozystack/types"
@@ -30,12 +30,19 @@ export function VMDiskWidget(props: WidgetProps) {
 
   const disks = diskList?.items || []
 
-  // Auto-select first disk if required and no value set
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  // Auto-select first disk if required and no value set.
+  // `disks` is intentionally omitted from deps: a new array reference from k8s watch
+  // would otherwise re-run this effect and overwrite a user's selection.
+  // `onChange` is also excluded — it changes reference every render.
   useEffect(() => {
     if (required && !value && disks.length > 0 && !isLoading) {
-      onChange(disks[0].metadata.name)
+      onChangeRef.current(disks[0].metadata.name)
     }
-  }, [required, value, disks, isLoading, onChange])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [required, value, isLoading])
 
   return (
     <select
