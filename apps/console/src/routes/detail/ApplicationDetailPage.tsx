@@ -130,7 +130,7 @@ export function ApplicationDetailPage() {
       <div className="border-b border-slate-200 bg-white px-6 pt-4">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(`/console/${plural}`)}
           className="mb-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"
         >
           <ChevronLeft className="size-3.5" /> Back

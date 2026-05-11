@@ -147,7 +147,7 @@ export function ApplicationOrderPage({
       <div className="border-b border-slate-200 bg-white px-6 pt-4 pb-3">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => editMode ? navigate(`/console/${plural}/${editMode.name}`) : navigate(-1)}
           className="mb-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"
         >
           <ChevronLeft className="size-3.5" /> Back
@@ -203,7 +203,7 @@ export function ApplicationOrderPage({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(-1)}
+              onClick={() => editMode ? navigate(`/console/${plural}/${editMode.name}`) : navigate(-1)}
               disabled={create.isPending || update.isPending}
             >
               Cancel
