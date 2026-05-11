@@ -32,7 +32,7 @@ const APP_KIND_LABEL = "apps.cozystack.io/application.kind"
  */
 export function ModulesPage() {
   const { data: defs, isLoading: defsLoading } = useApplicationDefinitions()
-  const { tenantNamespace } = useTenantContext()
+  const { tenantNamespace, selectedTenant } = useTenantContext()
 
   const { data: tmList, isLoading: tmLoading } = useK8sList<K8sResource>(
     { ...TENANT_MODULES_REF, namespace: tenantNamespace ?? undefined },
@@ -84,6 +84,7 @@ export function ModulesPage() {
               key={ad.metadata.name}
               ad={ad}
               installed={tmByKind.get(ad.spec?.application.kind ?? "")}
+              tenantName={selectedTenant ?? undefined}
             />
           ))}
         </div>
@@ -95,9 +96,11 @@ export function ModulesPage() {
 function ModuleCard({
   ad,
   installed,
+  tenantName,
 }: {
   ad: ApplicationDefinition
   installed: K8sResource | undefined
+  tenantName?: string
 }) {
   const kind = ad.spec?.application.kind ?? ad.metadata.name
   const plural = ad.spec?.application.plural ?? ad.metadata.name
@@ -105,7 +108,7 @@ function ModuleCard({
   const enabled = !!installed
   const target = enabled
     ? `/console/${plural}/${singletonName}`
-    : `/marketplace/${ad.metadata.name}`
+    : `/console/tenants/${tenantName ?? "root"}/edit`
   const icon = iconDataUrl(ad)
 
   return (
