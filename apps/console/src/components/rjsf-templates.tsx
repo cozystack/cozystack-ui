@@ -13,6 +13,7 @@ import { StorageClassWidget } from "./StorageClassWidget.tsx"
 import { AdditionalPropertiesWidget } from "./AdditionalPropertiesWidget.tsx"
 import { VMDiskWidget } from "./VMDiskWidget.tsx"
 import { BackupClassWidget } from "./BackupClassWidget.tsx"
+import { SensitiveStringWidget } from "./SensitiveStringWidget.tsx"
 
 function IconButton<
   T = any,
@@ -93,4 +94,5 @@ export const customWidgets = {
   AdditionalPropertiesWidget: AdditionalPropertiesWidget,
   VMDiskWidget: VMDiskWidget,
   BackupClassWidget: BackupClassWidget,
+  SensitiveStringWidget: SensitiveStringWidget,
 }

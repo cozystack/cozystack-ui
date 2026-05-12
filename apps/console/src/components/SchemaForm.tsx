@@ -3,6 +3,7 @@ import Form from "@rjsf/core"
 import validator from "@rjsf/validator-ajv8"
 import type { RJSFSchema, UiSchema, TemplatesType } from "@rjsf/utils"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
+import { addSensitiveStringWidgets } from "../lib/sensitive-fields.ts"
 import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
 import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
 import { ResourceQuotasField } from "./ResourceQuotasField.tsx"
@@ -187,18 +188,21 @@ export function SchemaForm({
     // Automatically add AdditionalPropertiesField for fields with additionalProperties schema
     const withAdditionalProps = addAdditionalPropertiesWidgets(schema, withVMDisk)
 
+    // Mask credential-shaped string fields (access/secret keys, passwords, tokens).
+    const withSensitive = addSensitiveStringWidgets(schema, withAdditionalProps)
+
     // Override resourceQuotas field with structured quota editor.
     // Scoped to schemas where resourceQuotas has additionalProperties: {type: "string"}
     // (the cozystack-tenants chart shape) to avoid activating on unrelated CRDs.
     const rqSchema = (schema as any).properties?.resourceQuotas
     if (rqSchema && rqSchema.additionalProperties?.type === "string") {
-      withAdditionalProps.resourceQuotas = {
-        ...withAdditionalProps.resourceQuotas,
+      withSensitive.resourceQuotas = {
+        ...withSensitive.resourceQuotas,
         "ui:field": "ResourceQuotasField",
       }
     }
 
-    return withAdditionalProps
+    return withSensitive
   }, [keysOrder, schema])
 
   const customFields = useMemo(
