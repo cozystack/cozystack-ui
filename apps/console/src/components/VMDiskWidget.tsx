@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import type { WidgetProps } from "@rjsf/utils"
 import { useK8sList } from "@cozystack/k8s-client"
 import { APPS_GROUP, APPS_VERSION } from "@cozystack/types"
@@ -30,12 +30,20 @@ export function VMDiskWidget(props: WidgetProps) {
 
   const disks = diskList?.items || []
 
-  // Auto-select first disk if required and no value set
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  // Auto-select the first disk once when disks become available and no value is set.
+  // A ref prevents re-triggering on every k8s watch event (new array reference)
+  // while still firing correctly when the list loads after mount.
+  const autoSelectedRef = useRef(false)
   useEffect(() => {
+    if (autoSelectedRef.current) return
     if (required && !value && disks.length > 0 && !isLoading) {
-      onChange(disks[0].metadata.name)
+      autoSelectedRef.current = true
+      onChangeRef.current(disks[0].metadata.name)
     }
-  }, [required, value, disks, isLoading, onChange])
+  }, [required, value, disks, isLoading])
 
   return (
     <select

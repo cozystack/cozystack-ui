@@ -130,7 +130,7 @@ export function ApplicationDetailPage() {
       <div className="border-b border-slate-200 bg-white px-6 pt-4">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(`/console/${plural}`)}
           className="mb-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"
         >
           <ChevronLeft className="size-3.5" /> Back
@@ -146,11 +146,13 @@ export function ApplicationDetailPage() {
               </p>
               <h1 className="text-lg font-semibold text-slate-900">{name}</h1>
             </div>
-            {ready && (
+            {instance?.metadata.deletionTimestamp ? (
+              <StatusBadge tone="muted">Terminating</StatusBadge>
+            ) : ready ? (
               <StatusBadge tone={ready.status === "True" ? "ok" : "warn"}>
                 {ready.status === "True" ? "Ready" : (ready.reason ?? "NotReady")}
               </StatusBadge>
-            )}
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <Link to={`/console/${plural}/${name}/edit`}>

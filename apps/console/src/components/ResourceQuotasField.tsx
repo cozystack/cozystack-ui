@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { FieldProps } from "@rjsf/utils"
 import { X, Plus } from "lucide-react"
 
@@ -62,12 +62,31 @@ function KnownRowEditor({ row, value, onChange, readonly }: KnownRowEditorProps)
     return parseSize(value, row.units).unit
   })
 
+  // expectedValueRef tracks values we emitted ourselves so we can distinguish
+  // an external reset (e.g. form data cleared from outside) from our own onChange.
+  const expectedValueRef = useRef(value)
+
+  useEffect(() => {
+    if (value === expectedValueRef.current) return
+    expectedValueRef.current = value
+    const hasValue = value !== undefined && value !== ""
+    setChecked(hasValue)
+    if (hasValue && value) {
+      setLocalNum(row.units ? parseSize(value, row.units).num : value)
+      if (row.units) setLocalUnit(parseSize(value, row.units).unit)
+    } else {
+      setLocalNum("")
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
   const enabled = checked
 
   const handleToggle = () => {
     if (enabled) {
       setChecked(false)
       setLocalNum("")
+      expectedValueRef.current = undefined
       onChange(undefined)
     } else {
       setChecked(true)
@@ -80,20 +99,21 @@ function KnownRowEditor({ row, value, onChange, readonly }: KnownRowEditorProps)
     const trimmed = num.trim()
     if (!trimmed) {
       // Clear from parent data but keep checkbox checked locally
+      expectedValueRef.current = undefined
       onChange(undefined)
       return
     }
-    if (row.units) {
-      onChange(formatSize(trimmed, localUnit))
-    } else {
-      onChange(trimmed)
-    }
+    const next = row.units ? formatSize(trimmed, localUnit) : trimmed
+    expectedValueRef.current = next
+    onChange(next)
   }
 
   const handleUnitChange = (unit: string) => {
     setLocalUnit(unit)
     if (localNum.trim()) {
-      onChange(formatSize(localNum, unit))
+      const next = formatSize(localNum, unit)
+      expectedValueRef.current = next
+      onChange(next)
     }
   }
 

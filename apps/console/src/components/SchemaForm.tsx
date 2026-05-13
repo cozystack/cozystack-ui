@@ -1,6 +1,7 @@
-import { useMemo } from "react"
+import { useMemo, useEffect, useRef } from "react"
 import Form from "@rjsf/core"
 import validator from "@rjsf/validator-ajv8"
+import { getDefaultFormState } from "@rjsf/utils"
 import type { RJSFSchema, UiSchema, TemplatesType } from "@rjsf/utils"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
 import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
@@ -164,6 +165,24 @@ export function SchemaForm({
       return {} as RJSFSchema
     }
   }, [openAPISchema])
+
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const initialFormDataRef = useRef(formData)
+  const emittedSchemaRef = useRef<RJSFSchema | null>(null)
+
+  // Emit defaults to parent once per schema so spec is never empty on first submit.
+  // Uses initialFormDataRef so edit-mode existing values are preserved as base.
+  // emittedSchemaRef prevents re-running on unrelated re-renders and avoids
+  // overwriting user data if the schema object changes identity unexpectedly.
+  useEffect(() => {
+    if (!schema || Object.keys(schema).length === 0) return
+    if (emittedSchemaRef.current === schema) return
+    emittedSchemaRef.current = schema
+    const defaults = getDefaultFormState(validator, schema, initialFormDataRef.current ?? {}, schema)
+    onChangeRef.current(defaults)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema])
 
   const uiSchema = useMemo<UiSchema>(() => {
     const baseUiSchema: UiSchema = {

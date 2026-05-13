@@ -44,7 +44,7 @@ export function VncTab({ ad, instance }: VncTabProps) {
       try {
         const rfb = new RFB(el, wsUrl, { credentials: {} })
         rfb.scaleViewport = true
-        rfb.resizeSession = false
+        rfb.resizeSession = true
 
         // Guard each handler: if rfbRef was replaced by a newer session, ignore
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,6 +130,7 @@ export function VncTab({ ad, instance }: VncTabProps) {
       try { rfbRef.current.disconnect() } catch {}
       rfbRef.current = null
     }
+    setDesktopSize(null)
     setConnectionKey((k) => k + 1)
   }
 
@@ -274,7 +275,7 @@ function ToolbarButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex items-center gap-1 rounded px-1.5 py-1 text-slate-500 transition-colors hover:bg-slate-700/60 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-30"
+      className="flex items-center gap-1 rounded px-1.5 py-1 text-slate-500 transition-colors hover:bg-slate-700/60 hover:text-slate-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
     >
       {children}
       {label && <span className="text-[10px] font-medium">{label}</span>}

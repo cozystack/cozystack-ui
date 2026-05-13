@@ -108,7 +108,9 @@ export function ApplicationListPage() {
                       {inst.metadata.name}
                     </td>
                     <td className="px-4 py-3">
-                      {ready ? (
+                      {inst.metadata.deletionTimestamp ? (
+                        <StatusBadge tone="muted">Terminating</StatusBadge>
+                      ) : ready ? (
                         <StatusBadge tone={ready.status === "True" ? "ok" : "warn"}>
                           {ready.status === "True" ? "Ready" : (ready.reason ?? "NotReady")}
                         </StatusBadge>
