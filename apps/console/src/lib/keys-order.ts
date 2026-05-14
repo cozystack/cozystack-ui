@@ -23,7 +23,9 @@ import type { UiSchema } from "@rjsf/utils"
  * nesting level so that RJSF renders top-level spec keys, then nested keys,
  * in the requested order.
  */
-export function keysOrderToUiSchema(keysOrder: string[][] | undefined): UiSchema {
+export function keysOrderToUiSchema(
+  keysOrder: ReadonlyArray<ReadonlyArray<string>> | undefined,
+): UiSchema {
   if (!keysOrder || keysOrder.length === 0) return {}
 
   // Group paths by their parent path.
@@ -61,6 +63,11 @@ export function keysOrderToUiSchema(keysOrder: string[][] | undefined): UiSchema
  *   - `x-kubernetes-preserve-unknown-fields: true` on an object without
  *     properties — arbitrary nested values allowed. Left as a "raw" object
  *     (handled via additionalProperties: true).
+ *   - `x-kubernetes-validations` — CEL rules. We drop them here entirely.
+ *     AJV has no CEL evaluator so the rules are pure noise to the form
+ *     validator; immutability is harvested up-front by `findImmutablePaths`
+ *     on the raw schema (see lib/immutable-paths.ts) and surfaced through
+ *     uiSchema, not through AJV.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function sanitizeSchema(schema: any): any {
@@ -70,6 +77,10 @@ export function sanitizeSchema(schema: any): any {
   const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(schema)) {
     if (k === "anyOf" && schema["x-kubernetes-int-or-string"]) continue
+    // CEL validations have no JSON-Schema validator-side semantics; the UI
+    // extracts immutability paths up-front in SchemaForm and then strips
+    // the rules so AJV doesn't waste cycles traversing them.
+    if (k === "x-kubernetes-validations") continue
     out[k] = sanitizeSchema(v)
   }
 
