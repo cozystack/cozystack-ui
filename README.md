@@ -36,3 +36,11 @@ pnpm build
 ```
 
 The console is built into `apps/console/dist/`.
+
+## Test
+
+```sh
+pnpm test
+```
+
+Runs the workspace test suites (vitest + jsdom for the console).
