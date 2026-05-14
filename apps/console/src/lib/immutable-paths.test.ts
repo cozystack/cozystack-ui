@@ -140,7 +140,8 @@ describe("findImmutablePaths", () => {
     expect(findImmutablePaths(cel)).toEqual([[]])
   })
 
-  it("FIXME(#8): does NOT walk into properties beneath oneOf/anyOf/allOf branches", () => {
+  it("does NOT walk into properties beneath oneOf/anyOf/allOf branches (pinned current behaviour)", () => {
+    // Tracked in cozystack/cozystack-ui#8.
     // The walker recognises *parent* immutability when any branch carries
     // the rule, but it does not descend into a branch's `properties` to
     // discover per-field immutability inside the branch. CRDs that use
@@ -376,7 +377,8 @@ describe("overlayImmutable", () => {
     })
   })
 
-  it("FIXME(#9): does NOT materialise an immutable leaf when its ancestor is missing in target", () => {
+  it("does NOT materialise an immutable leaf when its ancestor is missing in target (pinned current behaviour)", () => {
+    // Tracked in cozystack/cozystack-ui#9.
     // Defence-in-depth gap: if the YAML editor strips the parent object
     // entirely, overlay cannot reach the leaf to copy the original value.
     // Pin behaviour so a future contributor fixing the gap notices the
@@ -391,7 +393,8 @@ describe("overlayImmutable", () => {
     expect(result).toEqual({ spec: {} })
   })
 
-  it("FIXME(#10): array reordering by the user with index-aligned overlay re-anchors source values to the new index", () => {
+  it("array reordering by the user with index-aligned overlay re-anchors source values to the new index (pinned current behaviour)", () => {
+    // Tracked in cozystack/cozystack-ui#10.
     // The overlay walks by index, not by content identity. Reordering an
     // immutable array maps source[i] onto target[i]'s new value — which
     // for a per-element-name-immutable schema swaps the names back to the
