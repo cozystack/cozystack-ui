@@ -5,6 +5,7 @@ import { Button, Section, Spinner } from "@cozystack/ui"
 import { useK8sGet, useK8sUpdate } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useCRDSchema } from "../lib/use-crd-schema.ts"
+import { prepareUpdateSpec } from "../lib/prepare-update.ts"
 import { SchemaForm } from "../components/SchemaForm.tsx"
 
 interface BackupResourceEditPageProps {
@@ -23,6 +24,11 @@ export function BackupResourceEditPage({
   const { tenantNamespace } = useTenantContext()
   const [formData, setFormData] = useState<any>({})
   const initializedRef = useRef(false)
+  // Snapshot of resource.spec at the moment the form initialised. Used as
+  // the source for the immutable-field overlay so the value the user saw
+  // in the form is the value that goes into the PUT, regardless of any
+  // React-Query refetches in between.
+  const initialSpecRef = useRef<unknown>(null)
 
   // Map resourceType to CRD name
   const crdNameMap = {
@@ -61,15 +67,17 @@ export function BackupResourceEditPage({
     if (resource?.spec && !initializedRef.current) {
       initializedRef.current = true
       setFormData(resource.spec)
+      initialSpecRef.current = resource.spec
     }
   }, [resource])
 
   const handleSubmit = async () => {
     if (!resource) return
+    if (!schema) return
 
     const updated = {
       ...resource,
-      spec: formData,
+      spec: prepareUpdateSpec(formData, initialSpecRef.current, schema),
     }
 
     try {
@@ -141,6 +149,7 @@ export function BackupResourceEditPage({
                   openAPISchema={schema}
                   formData={formData}
                   onChange={setFormData}
+                  immutableMode="enforce"
                 >
                   <div className="hidden" />
                 </SchemaForm>

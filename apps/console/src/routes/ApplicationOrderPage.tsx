@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router"
 import { ChevronLeft, FileCode, FormInput } from "lucide-react"
 import yaml from "js-yaml"
@@ -12,6 +12,7 @@ import {
 } from "../lib/app-definitions.ts"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { composeResource } from "../lib/app-resource.ts"
+import { prepareUpdateSpec } from "../lib/prepare-update.ts"
 import { SchemaForm } from "../components/SchemaForm.tsx"
 import { YamlEditor } from "../components/YamlEditor.tsx"
 
@@ -40,6 +41,20 @@ export function ApplicationOrderPage({
   const [mode, setMode] = useState<Mode>("form")
   const [yamlText, setYamlText] = useState("")
   const [yamlError, setYamlError] = useState<string | null>(null)
+  // Snapshot of the persisted spec captured the first time we see an
+  // editMode prop. ApplicationEditRoute reconstructs `editMode` on every
+  // React-Query refetch, so reading `editMode.initialSpec` at save time
+  // would pick up whatever the cluster has right now, not what the user
+  // saw when they opened the form. The ref locks the overlay source to
+  // the value the user actually viewed.
+  const initialSpecRef = useRef<unknown>(editMode?.initialSpec)
+  const initialSpecCapturedRef = useRef(false)
+  useEffect(() => {
+    if (editMode && !initialSpecCapturedRef.current) {
+      initialSpecCapturedRef.current = true
+      initialSpecRef.current = editMode.initialSpec
+    }
+  }, [editMode])
 
   const plural = ad?.spec?.application.plural ?? ""
 
@@ -109,6 +124,15 @@ export function ApplicationOrderPage({
     const body = composeResource(ad, tenantNamespace, snap.name, snap.spec)
     try {
       if (editMode) {
+        // initialSpecRef holds the value the user saw when the form
+        // opened; if the resource is mutated externally between mount and
+        // Save, the overlay reinstates the mount-time value. That's the
+        // documented trade-off — re-mount to pick up fresh state.
+        body.spec = prepareUpdateSpec<Record<string, unknown>>(
+          body.spec ?? {},
+          (initialSpecRef.current ?? {}) as Record<string, unknown>,
+          ad.spec?.application.openAPISchema ?? "",
+        )
         await update.mutateAsync(body)
       } else {
         await create.mutateAsync(body)
@@ -248,6 +272,7 @@ export function ApplicationOrderPage({
                   keysOrder={ad.spec?.dashboard?.keysOrder}
                   formData={spec}
                   onChange={setSpec}
+                  immutableMode={editMode ? "enforce" : "off"}
                 />
               </div>
             )}
