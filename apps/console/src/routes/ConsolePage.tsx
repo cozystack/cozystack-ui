@@ -8,9 +8,9 @@ import { ApplicationListPage } from "./ApplicationListPage.tsx"
 import { ApplicationDetailPage } from "./detail/ApplicationDetailPage.tsx"
 import { ApplicationEditRoute } from "./detail/ApplicationEditRoute.tsx"
 import { BackupResourceListPage } from "./BackupResourceListPage.tsx"
-import { BackupResourceCreatePageWithData } from "./BackupResourceCreatePageWithData.tsx"
 import { BackupResourceEditPage } from "./BackupResourceEditPage.tsx"
 import { BackupPlanCreatePage } from "./BackupPlanCreatePage.tsx"
+import { BackupJobCreatePage } from "./BackupJobCreatePage.tsx"
 import { BackupCreatePage } from "./BackupCreatePage.tsx"
 import { BackupRestoreJobCreatePage } from "./BackupRestoreJobCreatePage.tsx"
 import { ApplicationOrderPage } from "./ApplicationOrderPage.tsx"
@@ -41,7 +41,7 @@ export function ConsolePage() {
       />
       <Route
         path="backups/backupjobs/create"
-        element={<BackupResourceCreatePageWithData resourceType="backupjobs" title="Backup Jobs" />}
+        element={<BackupJobCreatePage />}
       />
       <Route
         path="backups/backupjobs/:name/edit"

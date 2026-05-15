@@ -51,6 +51,14 @@ function addBackupClassWidgets(schema: RJSFSchema, uiSchema: UiSchema = {}): UiS
 
   for (const [key, value] of Object.entries(properties)) {
     if (key === "backupClassName" && typeof value === "object" && (value as any).type === "string") {
+      // Skip attaching the custom widget when an explicit enum is already
+      // present — the parent supplies the option list, RJSF's native
+      // SelectWidget handles binding correctly. Auto-attaching here would
+      // override the select with our BackupClassWidget whose internal
+      // useK8sList state can drop the user's selection on async re-renders.
+      if (Array.isArray((value as any).enum)) {
+        continue
+      }
       // Found a backupClassName field - add widget
       result[key] = {
         ...result[key],
@@ -169,18 +177,21 @@ export function SchemaForm({
 
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
-  const initialFormDataRef = useRef(formData)
+  const formDataRef = useRef(formData)
+  formDataRef.current = formData
   const emittedSchemaRef = useRef<RJSFSchema | null>(null)
 
   // Emit defaults to parent once per schema so spec is never empty on first submit.
-  // Uses initialFormDataRef so edit-mode existing values are preserved as base.
-  // emittedSchemaRef prevents re-running on unrelated re-renders and avoids
-  // overwriting user data if the schema object changes identity unexpectedly.
+  // Uses formDataRef (current parent state, not the initial mount snapshot) so
+  // user input is preserved when the parent recomputes openAPISchema due to
+  // async sibling data (e.g. plansData/backupClassesData loading) — without
+  // this, getDefaultFormState would re-emit defaults computed from the stale
+  // initial formData and wipe whatever the user already typed.
   useEffect(() => {
     if (!schema || Object.keys(schema).length === 0) return
     if (emittedSchemaRef.current === schema) return
     emittedSchemaRef.current = schema
-    const defaults = getDefaultFormState(validator, schema, initialFormDataRef.current ?? {}, schema)
+    const defaults = getDefaultFormState(validator, schema, formDataRef.current ?? {}, schema)
     onChangeRef.current(defaults)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema])
