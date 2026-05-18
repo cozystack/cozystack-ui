@@ -28,8 +28,12 @@ export function BackupPlanCreatePage() {
     plural: "backupclasses",
   })
 
-  // Get instances for selected kind
+  // Get instances for selected kind.
+  // Strict undefined check so an explicit empty string from the user means
+  // "no group" — clearing the field opts out of the cozystack defaults.
   const selectedKind = formData?.applicationRef?.kind
+  const rawApiGroup = formData?.applicationRef?.apiGroup
+  const selectedApiGroup = rawApiGroup === undefined ? "apps.cozystack.io" : rawApiGroup
   const selectedAppDef = useMemo(
     () => appDefs?.items.find(d => d.spec?.application.kind === selectedKind),
     [appDefs, selectedKind]
@@ -40,7 +44,7 @@ export function BackupPlanCreatePage() {
     apiVersion: "v1alpha1",
     plural: selectedAppDef?.spec?.application.plural ?? "",
     namespace: tenantNamespace ?? "",
-  }, { enabled: !!selectedAppDef && !!tenantNamespace })
+  }, { enabled: !!selectedAppDef && !!tenantNamespace && selectedApiGroup === "apps.cozystack.io" })
 
   const createMutation = useK8sCreate({
     apiGroup: "backups.cozystack.io",
@@ -52,8 +56,19 @@ export function BackupPlanCreatePage() {
   const schema = useMemo(() => {
     if (!baseSchema) return null
 
-    const base = JSON.parse(baseSchema)
-    const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
+    let base
+    try {
+      base = JSON.parse(baseSchema)
+    } catch (e) {
+      console.error("Failed to parse Plan schema:", e)
+      return null
+    }
+    // ApplicationDefinitions are exclusive to apps.cozystack.io — show the
+    // Kind dropdown only when the selected apiGroup matches; otherwise leave
+    // it as a free-text input (no enum hint).
+    const kinds: string[] = selectedApiGroup === "apps.cozystack.io"
+      ? appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
+      : []
     const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
@@ -63,7 +78,7 @@ export function BackupPlanCreatePage() {
     if (kinds.length > 0) {
       enumMap["applicationRef.kind"] = kinds
     }
-    if (selectedKind && instances.length > 0) {
+    if (selectedApiGroup === "apps.cozystack.io" && selectedKind && instances.length > 0) {
       enumMap["applicationRef.name"] = instances
     }
     if (backupClasses.length > 0) {
@@ -78,8 +93,14 @@ export function BackupPlanCreatePage() {
       enriched.properties.applicationRef.properties.apiGroup.default = "apps.cozystack.io"
     }
 
+    // Pre-fill cron with a daily 02:00 default so the user starts with a
+    // valid expression they can edit, rather than an empty required field.
+    if (enriched.properties?.schedule?.properties?.cron) {
+      enriched.properties.schedule.properties.cron.default = "0 2 * * *"
+    }
+
     return JSON.stringify(enriched)
-  }, [baseSchema, appDefs, backupClassesData, instancesData, selectedKind])
+  }, [baseSchema, appDefs, backupClassesData, instancesData, selectedKind, selectedApiGroup])
 
   const handleSubmit = async () => {
     if (!tenantNamespace) {

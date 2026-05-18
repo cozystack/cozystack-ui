@@ -9,7 +9,7 @@ import { useCRDSchema } from "../lib/use-crd-schema.ts"
 import { SchemaForm } from "../components/SchemaForm.tsx"
 import { enrichSchemaWithEnums } from "../lib/backup-utils.ts"
 
-export function BackupRestoreJobCreatePage() {
+export function BackupJobCreatePage() {
   const navigate = useNavigate()
   const { tenantNamespace } = useTenantContext()
   const { data: appDefs } = useApplicationDefinitions()
@@ -18,22 +18,31 @@ export function BackupRestoreJobCreatePage() {
 
   // Get base schema from CRD
   const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
-    "restorejobs.backups.cozystack.io"
+    "backupjobs.backups.cozystack.io"
   )
 
-  // Get Backups
-  const { data: backupsData } = useK8sList<any>({
+  // Get BackupClasses (cluster-scoped)
+  const { data: backupClassesData } = useK8sList<any>({
     apiGroup: "backups.cozystack.io",
     apiVersion: "v1alpha1",
-    plural: "backups",
+    plural: "backupclasses",
+  })
+
+  // Get Plans in the tenant namespace (optional reference)
+  const { data: plansData } = useK8sList<any>({
+    apiGroup: "backups.cozystack.io",
+    apiVersion: "v1alpha1",
+    plural: "plans",
     namespace: tenantNamespace ?? "",
   }, { enabled: !!tenantNamespace })
 
-  // Get instances for selected target kind.
+  // Resolve instances for the selected application kind.
+  // Mirrors BackupRestoreJobCreatePage: kind dropdown is gated to
+  // apps.cozystack.io (the only apiGroup ApplicationDefinitions cover).
   // Strict undefined check so an explicit empty string from the user means
   // "no group" — clearing the field opts out of the cozystack defaults.
-  const selectedKind = formData?.targetApplicationRef?.kind
-  const rawApiGroup = formData?.targetApplicationRef?.apiGroup
+  const selectedKind = formData?.applicationRef?.kind
+  const rawApiGroup = formData?.applicationRef?.apiGroup
   const selectedApiGroup = rawApiGroup === undefined ? "apps.cozystack.io" : rawApiGroup
   const selectedAppDef = useMemo(
     () => appDefs?.items.find(d => d.spec?.application.kind === selectedKind),
@@ -50,7 +59,7 @@ export function BackupRestoreJobCreatePage() {
   const createMutation = useK8sCreate({
     apiGroup: "backups.cozystack.io",
     apiVersion: "v1alpha1",
-    plural: "restorejobs",
+    plural: "backupjobs",
     namespace: tenantNamespace ?? "",
   })
 
@@ -61,65 +70,43 @@ export function BackupRestoreJobCreatePage() {
     try {
       base = JSON.parse(baseSchema)
     } catch (e) {
-      console.error("Failed to parse RestoreJob schema:", e)
+      console.error("Failed to parse BackupJob schema:", e)
       return null
     }
-    const backups = backupsData?.items.map((b: any) => b.metadata.name) ?? []
-    // ApplicationDefinitions live under apps.cozystack.io exclusively, so the
-    // Kind dropdown is populated only when the selected apiGroup matches.
-    // For any other apiGroup the user is on their own (no enum hint), which
-    // matches the free-text fallback behavior of plain CRD fields.
     const kinds: string[] = selectedApiGroup === "apps.cozystack.io"
       ? appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
       : []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
+    const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
+    const plans = plansData?.items.map((p: any) => p.metadata.name) ?? []
 
     const enumMap: Record<string, string[]> = {}
-
-    // Add enum values for dropdowns
-    if (backups.length > 0) {
-      enumMap["backupRef.name"] = backups
-    }
     if (kinds.length > 0) {
-      enumMap["targetApplicationRef.kind"] = kinds
+      enumMap["applicationRef.kind"] = kinds
     }
-    // Add instances enum only after kind is selected and apiGroup matches
-    // (ApplicationDefinitions cover apps.cozystack.io only — for any other
-    // apiGroup the user is on free-text fallback).
     if (selectedApiGroup === "apps.cozystack.io" && selectedKind && instances.length > 0) {
-      enumMap["targetApplicationRef.name"] = instances
+      enumMap["applicationRef.name"] = instances
+    }
+    if (backupClasses.length > 0) {
+      enumMap["backupClassName"] = backupClasses
+    }
+    if (plans.length > 0) {
+      // planRef is optional in the CRD (default ""). Prepend an empty value
+      // so the dropdown opens with no plan selected — matches the CRD default
+      // and avoids accidentally pinning the BackupJob to the first listed Plan.
+      enumMap["planRef.name"] = ["", ...plans]
     }
 
-    // Enrich schema with enum values
     const enriched = enrichSchemaWithEnums(base, [], enumMap)
 
-    // Add default value for apiGroup
-    if (enriched.properties?.targetApplicationRef?.properties?.apiGroup) {
-      enriched.properties.targetApplicationRef.properties.apiGroup.default = "apps.cozystack.io"
-    }
-
-    // The CRD ships backupRef.name with `default: ""` (k8s LocalObjectReference
-    // convention). Combined with an enum injected here, RJSF's SelectWidget
-    // can lose the user's selection on re-render — strip the default so the
-    // widget starts empty and the chosen value is the single source of truth.
-    if (enriched.properties?.backupRef?.properties?.name?.default !== undefined) {
-      delete enriched.properties.backupRef.properties.name.default
-    }
-
-    // spec.options is a driver-specific blob — the CRD declares it as
-    // `type: object` + `x-kubernetes-preserve-unknown-fields: true`, which
-    // sanitizeSchema flattens to `additionalProperties: true`. RJSF then has
-    // no widget for it. Rewrite to a typed map so AdditionalPropertiesField
-    // auto-attaches and the user gets a key/value editor.
-    if (enriched.properties?.options) {
-      delete enriched.properties.options["x-kubernetes-preserve-unknown-fields"]
-      enriched.properties.options.type = "object"
-      enriched.properties.options.additionalProperties = { type: "string" }
-      enriched.properties.options.properties = enriched.properties.options.properties ?? {}
+    // Default the optional apiGroup to apps.cozystack.io so the cozystack-
+    // managed kinds match without the user typing the group manually.
+    if (enriched.properties?.applicationRef?.properties?.apiGroup) {
+      enriched.properties.applicationRef.properties.apiGroup.default = "apps.cozystack.io"
     }
 
     return JSON.stringify(enriched)
-  }, [baseSchema, backupsData, appDefs, instancesData, selectedKind, selectedApiGroup])
+  }, [baseSchema, appDefs, backupClassesData, plansData, instancesData, selectedKind, selectedApiGroup])
 
   const handleSubmit = async () => {
     if (!tenantNamespace) {
@@ -132,32 +119,28 @@ export function BackupRestoreJobCreatePage() {
       return
     }
 
-    if (!formData.backupRef?.name) {
-      alert("Backup reference is required")
+    if (!formData.applicationRef?.kind || !formData.applicationRef?.name) {
+      alert("Application reference is required")
       return
     }
 
-    // targetApplicationRef is optional in the CRD — when omitted, the driver
-    // restores into the same application referenced by the backup. Reject
-    // partial input (kind without name or vice versa), but accept an empty ref.
-    const target = formData.targetApplicationRef
-    const hasTargetKind = !!target?.kind
-    const hasTargetName = !!target?.name
-    if (hasTargetKind !== hasTargetName) {
-      alert("Target reference requires both Kind and Name, or leave both empty to restore into the source application")
+    if (!formData.backupClassName) {
+      alert("Backup class name is required")
       return
     }
 
-    // Strip an empty targetApplicationRef so the API does not receive an empty
-    // object that the API server would reject as malformed.
+    // planRef is optional metadata recording which Plan triggered the job. The
+    // dropdown ships an empty sentinel; strip it so the API never receives
+    // `planRef: { name: "" }`, which would otherwise round-trip as a malformed
+    // LocalObjectReference.
     const spec = { ...formData }
-    if (!hasTargetKind && !hasTargetName) {
-      delete spec.targetApplicationRef
+    if (!spec.planRef?.name) {
+      delete spec.planRef
     }
 
     const resource = {
       apiVersion: "backups.cozystack.io/v1alpha1",
-      kind: "RestoreJob",
+      kind: "BackupJob",
       metadata: {
         name: name.trim(),
         namespace: tenantNamespace ?? undefined,
@@ -167,14 +150,14 @@ export function BackupRestoreJobCreatePage() {
 
     try {
       await createMutation.mutateAsync(resource)
-      navigate("/console/backups/restorejobs")
+      navigate("/console/backups/backupjobs")
     } catch (err) {
-      alert(`Failed to create RestoreJob: ${(err as Error).message}`)
+      alert(`Failed to create BackupJob: ${(err as Error).message}`)
     }
   }
 
   const handleCancel = () => {
-    navigate("/console/backups/restorejobs")
+    navigate("/console/backups/backupjobs")
   }
 
   if (schemaLoading) {
@@ -188,7 +171,7 @@ export function BackupRestoreJobCreatePage() {
   if (!schema) {
     return (
       <div className="p-8 text-red-600">
-        Failed to load RestoreJob schema. Please refresh the page.
+        Failed to load BackupJob schema. Please refresh the page.
       </div>
     )
   }
@@ -200,9 +183,9 @@ export function BackupRestoreJobCreatePage() {
           <Archive className="size-6 text-slate-600" />
         </div>
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">Create Restore Job</h1>
+          <h1 className="text-lg font-semibold text-slate-900">Create Backup Job</h1>
           <p className="text-xs text-slate-500">
-            Restore a backup to an application instance
+            Trigger a backup of an application instance
           </p>
         </div>
       </div>
@@ -211,14 +194,15 @@ export function BackupRestoreJobCreatePage() {
         <Section>
           <div className="space-y-4 p-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Restore Job Name <span className="text-red-500">*</span>
+              <label htmlFor="backup-job-name" className="block text-sm font-medium text-slate-700 mb-1">
+                Backup Job Name <span className="text-red-500">*</span>
               </label>
               <input
+                id="backup-job-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="my-restore-job"
+                placeholder="my-backup-job"
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
                 required
               />
