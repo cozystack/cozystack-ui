@@ -24,3 +24,11 @@ export {
 export type { ResourceRef } from "./hooks.ts"
 
 export { useApiGroupAvailable } from "./useApiGroupAvailable.ts"
+
+export { useSelfSubjectAccessReview } from "./useSelfSubjectAccessReview.ts"
+export type {
+  SelfSubjectAccessReview,
+  SelfSubjectAccessReviewSpec,
+  ResourceAttributes,
+  NonResourceAttributes,
+} from "./useSelfSubjectAccessReview.ts"
