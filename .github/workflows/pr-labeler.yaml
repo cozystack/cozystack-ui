@@ -1,0 +1,73 @@
+name: PR Auto-Label
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# Coalesce rapid edited/synchronize bursts on the same PR so an older run
+# cannot land its label mutations after a newer run computed a different set.
+concurrency:
+  group: pr-labeler-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out labeler script
+        uses: actions/checkout@v4
+        with:
+          # pull_request_target defaults to the PR base; that's exactly what
+          # we want — the labeler script must come from the base, never from
+          # the PR head, because pull_request_target runs with write-scoped
+          # GITHUB_TOKEN. Pinning to base.sha is defence-in-depth.
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Apply labels from PR title
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { computeLabels } = await import(`${process.env.GITHUB_WORKSPACE}/.github/scripts/pr-labeler.js`)
+            const pr = context.payload.pull_request
+            const { add, remove, warnings } = computeLabels({
+              title: pr.title || '',
+              body:  pr.body  || '',
+              existingLabels: (pr.labels || []).map((l) => l.name),
+            })
+
+            for (const w of warnings) core.warning(w)
+
+            // Remove stale labels the labeler is authoritative for. Tolerate
+            // 404 — concurrent runs or manual edits between event payload and
+            // execution can race here.
+            for (const name of remove) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name,
+                })
+                core.info(`Removed label: ${name}`)
+              } catch (e) {
+                if (e.status !== 404) throw e
+                core.info(`label ${name} already gone (404)`)
+              }
+            }
+
+            if (add.length === 0) {
+              core.info('No new labels to apply')
+              return
+            }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: add,
+            })
+            core.info(`Applied labels: ${add.join(', ')}`)
