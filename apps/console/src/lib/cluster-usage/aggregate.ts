@@ -8,7 +8,7 @@ import type {
   ResourceTotals,
   StandardResourceKey,
 } from "./types.ts"
-import { STANDARD_RESOURCE_KEYS } from "./types.ts"
+import { STANDARD_RESOURCE_KEYS, STANDARD_RESOURCE_KEY_SET } from "./types.ts"
 
 function emptyTotals(): ResourceTotals {
   return { capacity: 0, allocatable: 0, requested: 0 }
@@ -63,7 +63,7 @@ export function aggregateNodeResources(
       const requests = container.resources?.requests
       if (!requests) continue
       for (const [key, value] of Object.entries(requests)) {
-        if ((STANDARD_RESOURCE_KEYS as readonly string[]).includes(key)) {
+        if (STANDARD_RESOURCE_KEY_SET.has(key)) {
           standard[key as StandardResourceKey].requested += parseQuantity(value)
         } else if (extended[key]) {
           extended[key].requested += parseQuantity(value)

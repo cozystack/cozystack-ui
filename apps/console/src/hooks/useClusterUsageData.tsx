@@ -51,16 +51,27 @@ interface ClusterUsageData {
 
 /**
  * Composite hook that powers the Cluster Usage admin page. Subscribes
- * to nodes and pods via K8s watches (low cost, push-based updates), and
- * — only when metrics.k8s.io is discovered on the cluster — polls
+ * to nodes and pods via K8s watches (push-based updates, no polling),
+ * and — only when metrics.k8s.io is discovered on the cluster — polls
  * NodeMetrics on a 30-second cadence. metrics.k8s.io is not watchable,
  * so a refetch interval is the only option; the rest of the page works
  * fine without it.
  *
- * A 403 on the metrics fetch is treated as 'no usage data, but no
+ * The pods watch is cluster-wide and unfiltered. On a multi-thousand-
+ * pod cluster that is a few megabytes of JSON kept hot in memory plus
+ * continuous patch events. The trade-off is accepted for now because
+ * (a) Requested totals need every pod regardless of namespace, and
+ * (b) the watch already exists for the rest of the console. If the
+ * cost ever becomes painful, the natural follow-up is a field-selector
+ * projection on spec.nodeName + containers[*].resources.requests, or
+ * a server-side aggregation endpoint.
+ *
+ * A 403 on the metrics fetch is treated as 'no usage data, no
  * page-level error' — the Used overlay disappears, the rest of the
- * panel still renders. Nodes-list or pods-list errors are surfaced as
- * the hook's error so the page can render an explicit failure state.
+ * panel still renders. A pods-list error is surfaced through the
+ * `podsUnavailable` flag so the page can degrade gracefully. A
+ * nodes-list error is the only kind that takes over the page; everything
+ * downstream of it is undefined.
  */
 export function useClusterUsageData(): ClusterUsageData {
   const nodesQuery = useK8sList<Node>({

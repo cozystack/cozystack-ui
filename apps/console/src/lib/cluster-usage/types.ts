@@ -76,7 +76,7 @@ export const STANDARD_RESOURCE_KEYS = ["cpu", "memory", "ephemeral-storage", "po
 
 export type StandardResourceKey = (typeof STANDARD_RESOURCE_KEYS)[number]
 
-const STANDARD_RESOURCE_KEY_SET: ReadonlySet<string> = new Set(STANDARD_RESOURCE_KEYS)
+export const STANDARD_RESOURCE_KEY_SET: ReadonlySet<string> = new Set(STANDARD_RESOURCE_KEYS)
 
 /**
  * Whether a key from `node.status.capacity` should be treated as an

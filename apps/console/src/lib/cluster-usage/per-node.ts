@@ -1,6 +1,10 @@
 import { parseQuantity } from "../k8s-quantity.ts"
 import { formatAge } from "../status.ts"
-import { isExtendedResourceKey } from "./types.ts"
+import {
+  STANDARD_RESOURCE_KEYS,
+  STANDARD_RESOURCE_KEY_SET,
+  isExtendedResourceKey,
+} from "./types.ts"
 import type {
   Node,
   NodeMetrics,
@@ -9,7 +13,6 @@ import type {
   ResourceTotals,
   StandardResourceKey,
 } from "./types.ts"
-import { STANDARD_RESOURCE_KEYS } from "./types.ts"
 
 const PRESSURE_TYPES = new Set([
   "MemoryPressure",
@@ -17,8 +20,6 @@ const PRESSURE_TYPES = new Set([
   "PIDPressure",
   "NetworkUnavailable",
 ])
-
-const STANDARD_KEYS = new Set<string>(STANDARD_RESOURCE_KEYS)
 
 function rolesFromLabels(labels: Record<string, string> | undefined): string[] {
   if (!labels) return []
@@ -102,7 +103,7 @@ export function derivePerNodeRows(
         const requests = container.resources?.requests
         if (!requests) continue
         for (const [key, value] of Object.entries(requests)) {
-          if (STANDARD_KEYS.has(key)) {
+          if (STANDARD_RESOURCE_KEY_SET.has(key)) {
             standard[key as StandardResourceKey].requested += parseQuantity(value)
           } else if (extended[key]) {
             extended[key].requested += parseQuantity(value)
