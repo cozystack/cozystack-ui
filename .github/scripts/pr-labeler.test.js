@@ -160,3 +160,51 @@ test('non-labeler labels are never removed', () => {
   })
   assert.deepEqual(remove, [])
 })
+
+// ── Null-safety: destructuring defaults only fire on undefined ──
+
+test('null body does not throw', () => {
+  // GitHub PR payloads carry an explicit `null` for an empty description.
+  const { add } = computeLabels({ title: 'feat(ui): x', body: null })
+  assert.ok(add.includes('kind/feature'))
+  assert.ok(add.includes('area/ui'))
+})
+
+test('null title is treated as empty', () => {
+  const { add } = computeLabels({ title: null })
+  assert.ok(add.includes('area/uncategorized'))
+})
+
+test('null existingLabels does not throw', () => {
+  const { add } = computeLabels({ title: 'feat(ui): x', existingLabels: null })
+  assert.ok(add.includes('area/ui'))
+})
+
+// ── hasArea honours existing maintainer-added area/* ──
+
+test('retitle to scopeless when maintainer-added area/* exists: no area/uncategorized', () => {
+  // Maintainer manually attached area/forms. PR title is later retitled to a
+  // scopeless form. The labeler must not pile area/uncategorized on top of
+  // the already-categorised state, and must strip it if it was there from
+  // an earlier run.
+  const { add, remove } = computeLabels({
+    title: 'chore: housekeeping',
+    existingLabels: ['area/forms', 'area/uncategorized'],
+  })
+  assert.ok(!add.includes('area/uncategorized'))
+  assert.ok(remove.includes('area/uncategorized'))
+})
+
+test('existing only has area/uncategorized: scopeless title keeps area/uncategorized (no churn)', () => {
+  // The "honour existing area/*" rule must not count area/uncategorized as
+  // a real categorisation — otherwise a scopeless retitle would silently
+  // freeze the fallback in place. Expected net effect: fallback path is
+  // taken, area/uncategorized stays put (already-present so not re-added,
+  // and hasArea is false so not removed), kind/cleanup derives from chore.
+  const { add, remove } = computeLabels({
+    title: 'chore: housekeeping',
+    existingLabels: ['area/uncategorized'],
+  })
+  assert.deepEqual(add, ['kind/cleanup'])
+  assert.deepEqual(remove, [])
+})

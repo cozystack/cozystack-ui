@@ -127,8 +127,13 @@ export const scopeToArea = {
 //
 // Anything else (maintainer-added `area/*`, manual `kind/*`, anything
 // outside these two namespaces) is preserved on every run.
-export function computeLabels({ title = '', body = '', existingLabels = [] } = {}) {
-  const existing = new Set(existingLabels)
+export function computeLabels({ title: rawTitle, body: rawBody, existingLabels: rawExisting } = {}) {
+  // Destructuring defaults only fire on `undefined`, not `null`. GitHub PR
+  // payloads can carry an explicit `null` for an empty body and (less often)
+  // labels — fall back via `||` so `.match()` and Set iteration are safe.
+  const title = rawTitle || ''
+  const body = rawBody || ''
+  const existing = new Set(rawExisting || [])
   const toAdd = new Set()
 
   // 1. Try Conventional Commits form: type(scope)?(!)?: description
@@ -186,7 +191,12 @@ export function computeLabels({ title = '', body = '', existingLabels = [] } = {
   }
 
   // 7. Fallback: no area/* applied -> area/uncategorized.
-  const hasArea = [...toAdd].some((l) => l.startsWith('area/'))
+  // Honour maintainer-added area/* already on the PR — if the title has no
+  // scope but a real area/* is already attached, the PR is categorised; do
+  // not pile area/uncategorized on top.
+  const hasArea =
+    [...toAdd].some((l) => l.startsWith('area/')) ||
+    [...existing].some((l) => l.startsWith('area/') && l !== 'area/uncategorized')
   if (!hasArea) {
     toAdd.add('area/uncategorized')
   }
