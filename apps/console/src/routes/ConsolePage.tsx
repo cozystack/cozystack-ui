@@ -4,6 +4,7 @@ import { TenantsPage } from "./TenantsPage.tsx"
 import { ModulesPage } from "./ModulesPage.tsx"
 import { ExternalIpsPage } from "./ExternalIpsPage.tsx"
 import { InfoRedirect } from "./InfoRedirect.tsx"
+import { ClusterUsagePage } from "./ClusterUsagePage.tsx"
 import { ApplicationListPage } from "./ApplicationListPage.tsx"
 import { ApplicationDetailPage } from "./detail/ApplicationDetailPage.tsx"
 import { ApplicationEditRoute } from "./detail/ApplicationEditRoute.tsx"
@@ -23,6 +24,7 @@ export function ConsolePage() {
       <Route path="modules" element={<ModulesPage />} />
       <Route path="external-ips" element={<ExternalIpsPage />} />
       <Route path="tenants" element={<TenantsPage />} />
+      <Route path="cluster-usage" element={<ClusterUsagePage />} />
       <Route
         path="backups/plans"
         element={<BackupResourceListPage resourceType="plans" title="Plans" />}
