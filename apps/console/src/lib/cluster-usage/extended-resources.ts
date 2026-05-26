@@ -1,17 +1,5 @@
+import { isExtendedResourceKey } from "./types.ts"
 import type { Node } from "./types.ts"
-
-const STANDARD_KEYS = new Set([
-  "cpu",
-  "memory",
-  "ephemeral-storage",
-  "pods",
-])
-
-function isExtendedKey(key: string): boolean {
-  if (STANDARD_KEYS.has(key)) return false
-  if (key.startsWith("hugepages-")) return false
-  return true
-}
 
 /**
  * Returns the sorted, deduplicated set of extended-resource keys present
@@ -27,23 +15,8 @@ export function getExtendedResourceKeys(nodes: Node[]): string[] {
     const capacity = node.status?.capacity
     if (!capacity) continue
     for (const key of Object.keys(capacity)) {
-      if (isExtendedKey(key)) set.add(key)
+      if (isExtendedResourceKey(key)) set.add(key)
     }
-  }
-  return [...set].sort()
-}
-
-/**
- * Returns the sorted, deduplicated set of vendor prefixes derived from
- * a list of extended-resource keys. A key without a `/` is its own
- * prefix; this keeps the function total for malformed or non-namespaced
- * keys.
- */
-export function getExtendedResourcePrefixes(keys: string[]): string[] {
-  const set = new Set<string>()
-  for (const key of keys) {
-    const slash = key.indexOf("/")
-    set.add(slash === -1 ? key : key.slice(0, slash))
   }
   return [...set].sort()
 }

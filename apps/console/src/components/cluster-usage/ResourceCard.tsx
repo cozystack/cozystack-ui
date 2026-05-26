@@ -7,6 +7,12 @@ interface ResourceCardProps {
   title: string
   format: ResourceFormat
   totals: ResourceTotals
+  /**
+   * When true, the Requested figure is treated as unknown (cluster-wide
+   * pod read access was denied or the request failed). The numeric value
+   * is replaced with an em dash and a tooltip explains why.
+   */
+  requestedUnavailable?: boolean
 }
 
 function formatValue(value: number, format: ResourceFormat): string {
@@ -69,11 +75,17 @@ function ProgressBar({ pct, resourceBar, ariaLabel }: ProgressBarProps) {
  * have not yet reported their capacity, and crashing the panel is much
  * worse than rendering placeholders.
  */
-export function ResourceCard({ title, format, totals }: ResourceCardProps) {
+export function ResourceCard({
+  title,
+  format,
+  totals,
+  requestedUnavailable = false,
+}: ResourceCardProps) {
   const allocatableZero = totals.allocatable <= 0
   const requestedPct = percent(totals.requested, totals.allocatable)
   const usedDefined = totals.used !== undefined
   const usedPct = usedDefined ? percent(totals.used ?? 0, totals.allocatable) : null
+  const REQUESTED_UNAVAILABLE_REASON = "Requires cluster-wide pod read access"
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -109,11 +121,16 @@ export function ResourceCard({ title, format, totals }: ResourceCardProps) {
         <div>
           <div className="mb-1 flex items-baseline justify-between text-xs">
             <span className="text-slate-600">Requested</span>
-            <span className="tabular-nums text-slate-700">
-              {allocatableZero ? "—" : formatValue(totals.requested, format)}
+            <span
+              className="tabular-nums text-slate-700"
+              title={requestedUnavailable ? REQUESTED_UNAVAILABLE_REASON : undefined}
+            >
+              {requestedUnavailable || allocatableZero
+                ? "—"
+                : formatValue(totals.requested, format)}
             </span>
           </div>
-          {!allocatableZero ? (
+          {!allocatableZero && !requestedUnavailable ? (
             <ProgressBar
               pct={requestedPct}
               resourceBar="requested"

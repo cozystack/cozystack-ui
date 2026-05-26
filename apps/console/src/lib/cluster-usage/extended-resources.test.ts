@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-  getExtendedResourceKeys,
-  getExtendedResourcePrefixes,
-} from "./extended-resources.ts"
+import { getExtendedResourceKeys } from "./extended-resources.ts"
 import type { Node } from "./types.ts"
 
 function makeNode(name: string, capacity: Record<string, string>): Node {
@@ -77,22 +74,3 @@ describe("getExtendedResourceKeys", () => {
   })
 })
 
-describe("getExtendedResourcePrefixes", () => {
-  it("splits each key on / and returns unique prefixes sorted alphabetically", () => {
-    expect(
-      getExtendedResourcePrefixes([
-        "nvidia.com/gpu",
-        "nvidia.com/gpu.shared",
-        "amd.com/gpu",
-      ]),
-    ).toEqual(["amd.com", "nvidia.com"])
-  })
-
-  it("handles keys without a / by returning the whole key as its prefix", () => {
-    expect(getExtendedResourcePrefixes(["weirdkey"])).toEqual(["weirdkey"])
-  })
-
-  it("returns an empty array for empty input", () => {
-    expect(getExtendedResourcePrefixes([])).toEqual([])
-  })
-})

@@ -21,14 +21,31 @@ import type {
  */
 export const CLUSTER_USAGE_METRICS_REFETCH_MS = 30_000
 
+export interface NodeSummary {
+  total: number
+  ready: number
+  notReady: number
+  schedulingDisabled: number
+}
+
 interface ClusterUsageData {
   nodes: Node[]
   pods: Pod[]
   metrics: NodeMetrics[] | undefined
   aggregates: AggregateResources
   perNode: NodeRow[]
+  nodeSummary: NodeSummary
   isLoading: boolean
+  /**
+   * The hook's primary error: a nodes-list failure. Pods and metrics
+   * failures are surfaced through their own flags so callers can degrade
+   * gracefully instead of replacing the whole page with an error block.
+   */
   error: Error | null
+  /** HTTP status of `error`, if it was a K8sApiError. */
+  errorStatus: number | null
+  /** True when the cluster-wide pods list failed. Requested values are unreliable. */
+  podsUnavailable: boolean
   metricsAvailable: boolean
 }
 
@@ -74,9 +91,15 @@ export function useClusterUsageData(): ClusterUsageData {
     },
   )
 
-  const nodes = nodesQuery.data?.items ?? []
-  const pods = podsQuery.data?.items ?? []
-  const metricsItems = metricsQueryItems(metricsQuery.data, metricsQuery.error)
+  const nodes = useMemo<Node[]>(
+    () => nodesQuery.data?.items ?? [],
+    [nodesQuery.data],
+  )
+  const pods = useMemo<Pod[]>(() => podsQuery.data?.items ?? [], [podsQuery.data])
+  const metricsItems = useMemo(
+    () => metricsQueryItems(metricsQuery.data, metricsQuery.error),
+    [metricsQuery.data, metricsQuery.error],
+  )
 
   const aggregates = useMemo(
     () => aggregateNodeResources(nodes, pods, metricsItems),
@@ -86,6 +109,22 @@ export function useClusterUsageData(): ClusterUsageData {
     () => derivePerNodeRows(nodes, pods, metricsItems),
     [nodes, pods, metricsItems],
   )
+  const nodeSummary = useMemo<NodeSummary>(() => {
+    let ready = 0
+    let notReady = 0
+    let schedulingDisabled = 0
+    for (const row of perNode) {
+      if (!row.ready) notReady++
+      else if (!row.schedulable) schedulingDisabled++
+      else ready++
+    }
+    return { total: perNode.length, ready, notReady, schedulingDisabled }
+  }, [perNode])
+
+  const nodesError = (nodesQuery.error as Error | null) ?? null
+  const statusField =
+    nodesError != null ? (nodesError as unknown as { status?: unknown }).status : undefined
+  const errorStatus = typeof statusField === "number" ? statusField : null
 
   return {
     nodes,
@@ -93,10 +132,14 @@ export function useClusterUsageData(): ClusterUsageData {
     metrics: metricsItems,
     aggregates,
     perNode,
+    nodeSummary,
     isLoading:
       nodesQuery.isLoading || podsQuery.isLoading || metricsDiscoveryLoading,
-    // Metrics errors do not become page errors — usage simply disappears.
-    error: (nodesQuery.error as Error | null) ?? (podsQuery.error as Error | null) ?? null,
+    // Pods and metrics errors are not promoted to page-level errors.
+    // The caller renders cell-level placeholders instead.
+    error: nodesError,
+    errorStatus,
+    podsUnavailable: podsQuery.error != null,
     metricsAvailable,
   }
 }

@@ -1,16 +1,8 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from "vitest"
+import { describe, it, expect } from "vitest"
 import { render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { ClusterUsageTable } from "./ClusterUsageTable.tsx"
 import type { NodeRow } from "../../lib/cluster-usage/types.ts"
-
-beforeAll(() => {
-  vi.useFakeTimers()
-  vi.setSystemTime(new Date("2026-05-26T00:00:00Z"))
-})
-
-afterAll(() => {
-  vi.useRealTimers()
-})
 
 function row(name: string, overrides: Partial<NodeRow> = {}): NodeRow {
   return {
@@ -34,15 +26,15 @@ function row(name: string, overrides: Partial<NodeRow> = {}): NodeRow {
 }
 
 describe("ClusterUsageTable", () => {
-  it("renders one tr per node in name order", () => {
+  it("renders one tr per node, default-sorted by name ascending", () => {
     render(
       <ClusterUsageTable rows={[row("worker-b"), row("worker-a")]} extendedKeys={[]} />,
     )
     const rows = screen.getAllByRole("row")
-    // First row is the header
+    // First row is the header.
     expect(rows).toHaveLength(3)
-    expect(within(rows[1]).getByText("worker-b")).toBeInTheDocument()
-    expect(within(rows[2]).getByText("worker-a")).toBeInTheDocument()
+    expect(within(rows[1]).getByText("worker-a")).toBeInTheDocument()
+    expect(within(rows[2]).getByText("worker-b")).toBeInTheDocument()
   })
 
   it("shows Ready / NotReady status text", () => {
@@ -140,5 +132,80 @@ describe("ClusterUsageTable", () => {
     // two columns' two halves each — the assert just requires the row
     // contains the em dashes, not the exact count).
     expect(within(tr).getAllByText("—").length).toBeGreaterThan(0)
+  })
+
+  it("toggles the sort direction on a second click of the same column", async () => {
+    const user = userEvent.setup()
+    render(
+      <ClusterUsageTable rows={[row("a"), row("b"), row("c")]} extendedKeys={[]} />,
+    )
+    const nameHeader = screen.getByRole("button", { name: /name/i })
+    // Default is asc — verify ordering, then click to flip.
+    let bodyRows = screen.getAllByRole("row").slice(1)
+    expect(within(bodyRows[0]).getByText("a")).toBeInTheDocument()
+    await user.click(nameHeader)
+    bodyRows = screen.getAllByRole("row").slice(1)
+    expect(within(bodyRows[0]).getByText("c")).toBeInTheDocument()
+    expect(within(bodyRows[2]).getByText("a")).toBeInTheDocument()
+  })
+
+  it("filters rows by name substring (case-insensitive)", async () => {
+    const user = userEvent.setup()
+    render(
+      <ClusterUsageTable
+        rows={[row("worker-cpu-1"), row("worker-gpu-1"), row("ctrl-1")]}
+        extendedKeys={[]}
+      />,
+    )
+    const filter = screen.getByLabelText("Filter nodes")
+    await user.type(filter, "GPU")
+    expect(screen.queryByText("worker-cpu-1")).toBeNull()
+    expect(screen.queryByText("ctrl-1")).toBeNull()
+    expect(screen.getByText("worker-gpu-1")).toBeInTheDocument()
+  })
+
+  it("filters rows by role substring", async () => {
+    const user = userEvent.setup()
+    render(
+      <ClusterUsageTable
+        rows={[
+          row("a", { roles: ["control-plane"] }),
+          row("b", { roles: ["worker"] }),
+        ]}
+        extendedKeys={[]}
+      />,
+    )
+    const filter = screen.getByLabelText("Filter nodes")
+    await user.type(filter, "control")
+    expect(screen.getByText("a")).toBeInTheDocument()
+    expect(screen.queryByText("b")).toBeNull()
+  })
+
+  it("replaces the Requested line with an em-dash tooltip when podsUnavailable", () => {
+    render(
+      <ClusterUsageTable
+        rows={[
+          row("loaded", {
+            ready: true,
+            standard: {
+              cpu: { capacity: 8, allocatable: 8, requested: 4 },
+              memory: { capacity: 16 * 1024 ** 3, allocatable: 16 * 1024 ** 3, requested: 0 },
+              "ephemeral-storage": { capacity: 0, allocatable: 0, requested: 0 },
+              pods: { capacity: 110, allocatable: 110, requested: 0 },
+            },
+          }),
+        ]}
+        extendedKeys={[]}
+        podsUnavailable
+      />,
+    )
+    const tr = screen.getByText("loaded").closest("tr")!
+    const tooltipNodes = tr.querySelectorAll(
+      '[title="Requires cluster-wide pod read access"]',
+    )
+    expect(tooltipNodes.length).toBeGreaterThan(0)
+    // The literal "4 / 8 req" (visible when pods are available) must not
+    // appear when podsUnavailable; the tooltip-bearing dash takes its place.
+    expect(within(tr).queryByText(/4 \/ 8 req/)).toBeNull()
   })
 })

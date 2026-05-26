@@ -1,5 +1,6 @@
 import { parseQuantity } from "../k8s-quantity.ts"
 import { formatAge } from "../status.ts"
+import { isExtendedResourceKey } from "./types.ts"
 import type {
   Node,
   NodeMetrics,
@@ -22,9 +23,13 @@ const STANDARD_KEYS = new Set<string>(STANDARD_RESOURCE_KEYS)
 function rolesFromLabels(labels: Record<string, string> | undefined): string[] {
   if (!labels) return []
   const roles = new Set<string>()
+  const PREFIX = "node-role.kubernetes.io/"
   for (const key of Object.keys(labels)) {
-    if (key.startsWith("node-role.kubernetes.io/")) {
-      roles.add(key.slice("node-role.kubernetes.io/".length))
+    if (key.startsWith(PREFIX)) {
+      const role = key.slice(PREFIX.length)
+      // Some clusters write `node-role.kubernetes.io/=...` with an empty
+      // role part; skip those to avoid an empty pill in the UI.
+      if (role.length > 0) roles.add(role)
     }
   }
   if (roles.size === 0) {
@@ -36,12 +41,6 @@ function rolesFromLabels(labels: Record<string, string> | undefined): string[] {
 
 function emptyTotals(): ResourceTotals {
   return { capacity: 0, allocatable: 0, requested: 0 }
-}
-
-function isExtendedKey(key: string): boolean {
-  if (STANDARD_KEYS.has(key)) return false
-  if (key.startsWith("hugepages-")) return false
-  return true
 }
 
 /**
@@ -90,7 +89,7 @@ export function derivePerNodeRows(
       standard[key].allocatable = parseQuantity(allocatable[key] ?? "0")
     }
     for (const key of Object.keys(capacity)) {
-      if (!isExtendedKey(key)) continue
+      if (!isExtendedResourceKey(key)) continue
       extended[key] = {
         capacity: parseQuantity(capacity[key] ?? "0"),
         allocatable: parseQuantity(allocatable[key] ?? "0"),

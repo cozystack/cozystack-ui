@@ -76,6 +76,19 @@ export const STANDARD_RESOURCE_KEYS = ["cpu", "memory", "ephemeral-storage", "po
 
 export type StandardResourceKey = (typeof STANDARD_RESOURCE_KEYS)[number]
 
+const STANDARD_RESOURCE_KEY_SET: ReadonlySet<string> = new Set(STANDARD_RESOURCE_KEYS)
+
+/**
+ * Whether a key from `node.status.capacity` should be treated as an
+ * extended resource. Standard scheduler resources and every hugepages-*
+ * variant return false; everything else returns true.
+ */
+export function isExtendedResourceKey(key: string): boolean {
+  if (STANDARD_RESOURCE_KEY_SET.has(key)) return false
+  if (key.startsWith("hugepages-")) return false
+  return true
+}
+
 /** A resource snapshot in canonical units — cores for CPU, bytes elsewhere. */
 export interface ResourceTotals {
   capacity: number

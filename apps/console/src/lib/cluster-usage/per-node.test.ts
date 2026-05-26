@@ -137,6 +137,15 @@ describe("derivePerNodeRows", () => {
     expect(rows[0].roles).toEqual([])
   })
 
+  it("filters out an empty role suffix (`node-role.kubernetes.io/=`)", () => {
+    const rows = derivePerNodeRows(
+      [nodeWith("a", { labels: { "node-role.kubernetes.io/": "" } })],
+      [],
+      undefined,
+    )
+    expect(rows[0].roles).toEqual([])
+  })
+
   it("reports schedulable=false when spec.unschedulable=true", () => {
     const rows = derivePerNodeRows(
       [nodeWith("a", { unschedulable: true })],

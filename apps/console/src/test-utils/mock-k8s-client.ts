@@ -1,5 +1,5 @@
 import { vi } from "vitest"
-import { K8sClient, K8sApiError, type K8sList, type WatchEvent } from "@cozystack/k8s-client"
+import { K8sClient, K8sApiError, type K8sList } from "@cozystack/k8s-client"
 
 interface ListOverride {
   apiGroup: string
@@ -24,20 +24,19 @@ export interface MockK8sClientOverrides {
 }
 
 /**
- * Build a K8sClient subclass whose network-facing methods (list/get/watch)
- * resolve from in-memory overrides instead of fetch. The resulting object
- * still satisfies the K8sClient interface — the compile-time check at the
- * bottom of this file ensures the production interface and the mock stay
- * in lockstep when the real K8sClient gains new methods.
+ * Build a K8sClient instance whose network-facing methods (list/get/watch)
+ * resolve from in-memory overrides instead of fetch. The underlying object
+ * is a real K8sClient so any method this factory does not stub — including
+ * ones added to the production class after this file was written — falls
+ * through to the real implementation; tests that touch new methods are
+ * expected to spy on them explicitly via vi.spyOn on the returned instance.
  *
- * Watch is stubbed to a noop returning a cleanup function; tests that need
- * watch event behaviour should override it via vi.spyOn on the returned
- * instance.
+ * Watch is stubbed to return a noop cleanup function.
  */
 export function createMockK8sClient(overrides: MockK8sClientOverrides = {}): K8sClient {
   const client = new K8sClient({ baseUrl: "/mock" })
 
-  const listSpy = vi.spyOn(client, "list").mockImplementation(
+  vi.spyOn(client, "list").mockImplementation(
     async (apiGroup, apiVersion, plural, namespace) => {
       const match = overrides.lists?.find(
         (o) =>
@@ -55,7 +54,7 @@ export function createMockK8sClient(overrides: MockK8sClientOverrides = {}): K8s
     },
   )
 
-  const getSpy = vi.spyOn(client, "get").mockImplementation(
+  vi.spyOn(client, "get").mockImplementation(
     async (apiGroup, apiVersion, plural, name, namespace) => {
       const match = overrides.gets?.find(
         (o) =>
@@ -73,21 +72,7 @@ export function createMockK8sClient(overrides: MockK8sClientOverrides = {}): K8s
     },
   )
 
-  vi.spyOn(client, "watch").mockImplementation(
-    (_apiGroup, _apiVersion, _plural, _ns, _rv, _onEvent: (e: WatchEvent<unknown>) => void) => {
-      return () => {}
-    },
-  )
-
-  void listSpy
-  void getSpy
+  vi.spyOn(client, "watch").mockReturnValue(() => {})
 
   return client
 }
-
-// Compile-time check: the production K8sClient class must remain
-// assignable to the type our mock factory promises. If K8sClient ever
-// adds a new public method, this line fails to typecheck and the mock
-// has to grow a corresponding stub.
-const _typeDriftCheck: K8sClient = createMockK8sClient()
-void _typeDriftCheck

@@ -125,6 +125,43 @@ describe("ClusterUsagePage", () => {
     })
   })
 
+  it("renders a permission-denied block with a back link on 403", async () => {
+    const client = makeClient({ nodes: new K8sApiError(403, "forbidden") })
+    renderWithK8sProvider(<ClusterUsagePage />, { client })
+    expect(
+      await screen.findByText(/you do not have permission to view cluster nodes/i),
+    ).toBeInTheDocument()
+    const back = screen.getByRole("link", { name: /back to console/i })
+    expect(back.getAttribute("href")).toBe("/console")
+  })
+
+  it("propagates pods-unavailable to the aggregate panel and the table", async () => {
+    const client = makeClient({
+      nodes: nodesListFixture,
+      pods: new K8sApiError(403, "no pod read"),
+      groups: groupsWithoutMetrics,
+    })
+    renderWithK8sProvider(<ClusterUsagePage />, { client })
+    await screen.findAllByText(/allocatable/i)
+    const tooltipNodes = document.querySelectorAll(
+      '[title="Requires cluster-wide pod read access"]',
+    )
+    expect(tooltipNodes.length).toBeGreaterThan(0)
+  })
+
+  it("renders the node-summary line in the aggregates header", async () => {
+    const client = makeClient({
+      nodes: nodesListFixture,
+      pods: podsListFixture,
+      groups: groupsWithoutMetrics,
+    })
+    renderWithK8sProvider(<ClusterUsagePage />, { client })
+    await screen.findByText("3 nodes")
+    expect(
+      screen.getByText(/3 Ready · 0 NotReady · 0 SchedulingDisabled/),
+    ).toBeInTheDocument()
+  })
+
   it("omits the Used line everywhere when metrics-server is not registered", async () => {
     const client = makeClient({
       nodes: nodesListFixture,

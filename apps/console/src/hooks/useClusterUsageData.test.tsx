@@ -57,8 +57,11 @@ function stubList(
   client: K8sClient,
   responses: Partial<Record<string, K8sList<unknown> | K8sApiError>>,
 ) {
-  vi.spyOn(client, "list").mockImplementation(async (_g, _v, plural) => {
-    const r = responses[plural]
+  vi.spyOn(client, "list").mockImplementation(async (apiGroup, _v, plural) => {
+    // Key by (apiGroup|plural). The metrics.k8s.io node listing uses
+    // plural=nodes too, so we can't disambiguate on plural alone.
+    const key = `${apiGroup}|${plural}`
+    const r = responses[key]
     if (r instanceof K8sApiError) throw r
     return (r ?? { apiVersion: "v1", kind: `${plural}List`, metadata: {}, items: [] }) as K8sList<
       unknown
@@ -80,9 +83,9 @@ describe("useClusterUsageData", () => {
   it("returns aggregates and per-node rows derived from nodes + pods + metrics", async () => {
     const client = new K8sClient()
     stubList(client, {
-      nodes: nodesListFixture,
-      pods: podsListFixture,
-      nodes_metrics: nodeMetricsListFixture,
+      "|nodes": nodesListFixture,
+      "|pods": podsListFixture,
+      "metrics.k8s.io|nodes": nodeMetricsListFixture,
     })
     vi.spyOn(client, "getApiGroups").mockResolvedValue(groupsWithMetrics)
     const { result } = renderHook(() => useClusterUsageData(), {
@@ -96,6 +99,8 @@ describe("useClusterUsageData", () => {
       "worker-gpu-1",
     ])
     expect(result.current.aggregates.extended["nvidia.com/gpu"].capacity).toBe(1)
+    // Used overlay must be populated from the metrics fixture.
+    expect(result.current.aggregates.standard.cpu.used).toBeGreaterThan(0)
   })
 
   it("never lists NodeMetrics when metrics.k8s.io is not registered", async () => {
