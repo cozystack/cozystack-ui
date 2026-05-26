@@ -5,6 +5,11 @@ import { getDefaultFormState } from "@rjsf/utils"
 import type { RJSFSchema, UiSchema, TemplatesType } from "@rjsf/utils"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
 import { addSensitiveStringWidgets } from "../lib/sensitive-fields.ts"
+import {
+  IMMUTABLE_HELP_TEXT,
+  findImmutablePaths,
+  type ImmutablePath,
+} from "../lib/immutable-paths.ts"
 import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
 import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
 import { ResourceQuotasField } from "./ResourceQuotasField.tsx"
@@ -152,12 +157,114 @@ function addVMDiskWidgets(schema: RJSFSchema, uiSchema: UiSchema = {}): UiSchema
   return result
 }
 
+/**
+ * Apply ui:disabled + ui:help to every path the schema declares immutable.
+ * The disabled flag (not readonly) gives the grey-out treatment specified
+ * by product. Wildcard "*" segments translate to "items" for arrays. For
+ * object maps (additionalProperties) the disabled flag is set on the
+ * field itself so AdditionalPropertiesField hides Add/Remove controls and
+ * disables the nested forms — see the comment at the additionalProperties
+ * branch below for the UX trade-off.
+ *
+ * NOTE: this walker navigates the sanitised schema (which still carries
+ * `properties`, `items` and `additionalProperties` structurally). The
+ * immutable-path *set* is harvested separately from the *raw* schema via
+ * findImmutablePaths, since sanitizeSchema strips x-kubernetes-validations
+ * on its way to AJV. If a future sanitisation step ever rewrites those
+ * structural keys, this walker needs to be updated in lockstep.
+ */
+function addImmutableReadonly(
+  schema: RJSFSchema,
+  uiSchema: UiSchema,
+  paths: readonly ImmutablePath[],
+): UiSchema {
+  if (paths.length === 0) return uiSchema
+  const next: UiSchema = { ...uiSchema }
+  for (const path of paths) {
+    applyImmutablePath(schema, next, path, 0)
+  }
+  return next
+}
+
+function applyImmutablePath(
+  schemaNode: unknown,
+  uiNode: Record<string, unknown>,
+  path: ImmutablePath,
+  depth: number,
+): void {
+  if (depth === path.length) {
+    uiNode["ui:disabled"] = true
+    uiNode["ui:help"] = IMMUTABLE_HELP_TEXT
+    return
+  }
+  const seg = path[depth]
+  const schemaObj =
+    schemaNode && typeof schemaNode === "object" && !Array.isArray(schemaNode)
+      ? (schemaNode as Record<string, unknown>)
+      : null
+  if (seg === "*") {
+    if (schemaObj && schemaObj.items) {
+      const isLast = depth === path.length - 1
+      if (isLast) {
+        // Whole-array immutable: mark the wrapper itself disabled so
+        // RJSF's ArrayFieldTemplate hides Add/Remove and disables every
+        // element. Mirrors the additionalProperties-map handling below;
+        // without this the user could click Add, fill an entry, and
+        // watch it silently disappear on save when overlay clones source.
+        uiNode["ui:disabled"] = true
+        uiNode["ui:help"] = IMMUTABLE_HELP_TEXT
+        return
+      }
+      const childUi = ensureChild(uiNode, "items")
+      applyImmutablePath(schemaObj.items, childUi, path, depth + 1)
+      return
+    }
+    // additionalProperties object map. Per-value immutability is rendered
+    // here as whole-map immutability: the field itself is marked disabled,
+    // AdditionalPropertiesField hides Add/Remove and disables every inner
+    // input. Splitting "keys editable, values frozen" needs custom plumbing
+    // through that field plus a UX decision on whether deleting an entry
+    // counts as mutating its value — deliberately deferred until a real
+    // schema asks for it.
+    uiNode["ui:disabled"] = true
+    uiNode["ui:help"] = IMMUTABLE_HELP_TEXT
+    return
+  }
+  const childSchema = schemaObj
+    ? (schemaObj.properties as Record<string, unknown> | undefined)?.[seg]
+    : undefined
+  const childUi = ensureChild(uiNode, seg)
+  applyImmutablePath(childSchema, childUi, path, depth + 1)
+}
+
+function ensureChild(
+  uiNode: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> {
+  const existing = uiNode[key]
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    const cloned = { ...(existing as Record<string, unknown>) }
+    uiNode[key] = cloned
+    return cloned
+  }
+  const fresh: Record<string, unknown> = {}
+  uiNode[key] = fresh
+  return fresh
+}
+
 interface SchemaFormProps {
   openAPISchema: string
   keysOrder?: string[][]
   formData: unknown
   onChange: (data: unknown) => void
   children?: React.ReactNode
+  /**
+   * When "enforce", fields whose schema carries a CEL immutability rule
+   * (`self == oldSelf`) are rendered greyed out (disabled) with helper
+   * text. Default "off" keeps every field editable — used for create
+   * flows.
+   */
+  immutableMode?: "enforce" | "off"
 }
 
 export function SchemaForm({
@@ -166,14 +273,25 @@ export function SchemaForm({
   formData,
   onChange,
   children,
+  immutableMode,
 }: SchemaFormProps) {
-  const schema = useMemo<RJSFSchema>(() => {
+  // Parse the raw schema once, then derive the sanitised RJSFSchema and the
+  // immutable-path set from it. We keep the raw object around so we don't
+  // re-parse the same string twice on every render. The contract is "same
+  // openAPISchema string ⇒ same parsedSchema reference"; the dependent
+  // memos rely on that identity to avoid recomputation.
+  const parsedSchema = useMemo<unknown>(() => {
     try {
-      return sanitizeSchema(JSON.parse(openAPISchema)) as RJSFSchema
+      return JSON.parse(openAPISchema)
     } catch {
-      return {} as RJSFSchema
+      return {}
     }
   }, [openAPISchema])
+
+  const schema = useMemo<RJSFSchema>(
+    () => sanitizeSchema(parsedSchema) as RJSFSchema,
+    [parsedSchema],
+  )
 
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -193,8 +311,12 @@ export function SchemaForm({
     emittedSchemaRef.current = schema
     const defaults = getDefaultFormState(validator, schema, formDataRef.current ?? {}, schema)
     onChangeRef.current(defaults)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema])
+
+  const immutablePaths = useMemo<ImmutablePath[]>(
+    () => (immutableMode === "enforce" ? findImmutablePaths(parsedSchema) : []),
+    [parsedSchema, immutableMode],
+  )
 
   const uiSchema = useMemo<UiSchema>(() => {
     const baseUiSchema: UiSchema = {
@@ -232,8 +354,8 @@ export function SchemaForm({
       }
     }
 
-    return withSensitive
-  }, [keysOrder, schema])
+    return addImmutableReadonly(schema, withSensitive, immutablePaths)
+  }, [keysOrder, schema, immutablePaths])
 
   const customFields = useMemo(
     () => ({
