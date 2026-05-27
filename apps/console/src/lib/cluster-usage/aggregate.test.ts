@@ -98,6 +98,24 @@ describe("aggregateNodeResources", () => {
     expect(a.standard.cpu.requested).toBe(0)
   })
 
+  it("excludes terminal (Succeeded/Failed) pods from requested totals", () => {
+    const terminal = (name: string, phase: string): Pod => ({
+      ...pod(name, "a", { cpu: "1", memory: "2Gi" }),
+      status: { phase },
+    })
+    const a = aggregateNodeResources(
+      [node("a", { cpu: "8", memory: "16Gi" })],
+      [
+        pod("running", "a", { cpu: "500m", memory: "1Gi" }),
+        terminal("completed", "Succeeded"),
+        terminal("crashed", "Failed"),
+      ],
+      undefined,
+    )
+    expect(a.standard.cpu.requested).toBe(0.5)
+    expect(a.standard.memory.requested).toBe(1024 ** 3)
+  })
+
   it("sums extended-resource requests under the extended bucket", () => {
     const a = aggregateNodeResources(
       [node("a", { cpu: "8", "nvidia.com/gpu": "2" })],

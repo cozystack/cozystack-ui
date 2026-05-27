@@ -59,6 +59,10 @@ export function aggregateNodeResources(
   for (const pod of pods) {
     const nodeName = pod.spec?.nodeName
     if (!nodeName || !knownNodes.has(nodeName)) continue
+    // Terminal pods still appear in API lists but no longer hold schedulable
+    // requests; counting them would inflate the requested totals.
+    const phase = pod.status?.phase
+    if (phase === "Succeeded" || phase === "Failed") continue
     for (const container of pod.spec?.containers ?? []) {
       const requests = container.resources?.requests
       if (!requests) continue
