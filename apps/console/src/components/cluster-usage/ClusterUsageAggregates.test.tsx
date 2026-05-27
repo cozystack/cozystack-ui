@@ -109,9 +109,8 @@ describe("ClusterUsageAggregates", () => {
     )
     // The numeric Requested value should not be visible; em dashes appear
     // and at least one element has the explanatory tooltip on title.
-    const tooltipNodes = document.querySelectorAll(
-      '[title="Requires cluster-wide pod read access"]',
-    )
-    expect(tooltipNodes.length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByTitle("Requires cluster-wide pod read access").length,
+    ).toBeGreaterThan(0)
   })
 })

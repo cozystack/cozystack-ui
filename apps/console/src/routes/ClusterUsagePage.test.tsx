@@ -143,10 +143,9 @@ describe("ClusterUsagePage", () => {
     })
     renderWithK8sProvider(<ClusterUsagePage />, { client })
     await screen.findAllByText(/allocatable/i)
-    const tooltipNodes = document.querySelectorAll(
-      '[title="Requires cluster-wide pod read access"]',
-    )
-    expect(tooltipNodes.length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByTitle("Requires cluster-wide pod read access").length,
+    ).toBeGreaterThan(0)
   })
 
   it("renders the node-summary line in the aggregates header", async () => {
