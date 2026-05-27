@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import {
   useK8sList,
   useApiGroupAvailable,
+  K8sApiError,
   type K8sList,
 } from "@cozystack/k8s-client"
 import { aggregateNodeResources } from "../lib/cluster-usage/aggregate.ts"
@@ -133,9 +134,7 @@ export function useClusterUsageData(): ClusterUsageData {
   }, [perNode])
 
   const nodesError = (nodesQuery.error as Error | null) ?? null
-  const statusField =
-    nodesError != null ? (nodesError as unknown as { status?: unknown }).status : undefined
-  const errorStatus = typeof statusField === "number" ? statusField : null
+  const errorStatus = nodesError instanceof K8sApiError ? nodesError.status : null
 
   return {
     nodes,

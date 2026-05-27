@@ -205,10 +205,13 @@ export function ClusterUsageTable({
     )
   }
 
-  const visibleRows = useMemo(() => {
-    const filtered = rows.filter((r) => matchesFilter(r, filter))
-    return filtered.slice().sort((a, b) => compareRows(a, b, sort))
-  }, [rows, sort, filter])
+  const visibleRows = useMemo(
+    () =>
+      rows
+        .filter((r) => matchesFilter(r, filter))
+        .sort((a, b) => compareRows(a, b, sort)),
+    [rows, sort, filter],
+  )
 
   return (
     <div className="space-y-3">
