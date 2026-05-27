@@ -6,19 +6,23 @@
  */
 export function parseQuantity(s: string): number {
   if (!s) return 0
-  if (s.endsWith("m")) return parseFloat(s) / 1000
+  // A malformed quantity (e.g. a bare suffix like "m") parses to NaN, which
+  // would poison every total and percentage it feeds into. Treat it as 0.
+  const n = parseFloat(s)
+  if (!Number.isFinite(n)) return 0
+  if (s.endsWith("m")) return n / 1000
   // Binary SI suffixes (powers of 1024)
-  if (s.endsWith("Ki")) return parseFloat(s) * 1024
-  if (s.endsWith("Mi")) return parseFloat(s) * 1024 ** 2
-  if (s.endsWith("Gi")) return parseFloat(s) * 1024 ** 3
-  if (s.endsWith("Ti")) return parseFloat(s) * 1024 ** 4
-  if (s.endsWith("Pi")) return parseFloat(s) * 1024 ** 5
-  if (s.endsWith("Ei")) return parseFloat(s) * 1024 ** 6
+  if (s.endsWith("Ki")) return n * 1024
+  if (s.endsWith("Mi")) return n * 1024 ** 2
+  if (s.endsWith("Gi")) return n * 1024 ** 3
+  if (s.endsWith("Ti")) return n * 1024 ** 4
+  if (s.endsWith("Pi")) return n * 1024 ** 5
+  if (s.endsWith("Ei")) return n * 1024 ** 6
   // Decimal SI suffixes (powers of 1000) — Kubernetes uses lowercase k
-  if (s.endsWith("k")) return parseFloat(s) * 1000
-  if (s.endsWith("M")) return parseFloat(s) * 1000 ** 2
-  if (s.endsWith("G")) return parseFloat(s) * 1000 ** 3
-  return parseFloat(s) || 0
+  if (s.endsWith("k")) return n * 1000
+  if (s.endsWith("M")) return n * 1000 ** 2
+  if (s.endsWith("G")) return n * 1000 ** 3
+  return n
 }
 
 export function humanizeBytes(bytes: number): string {

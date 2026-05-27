@@ -66,10 +66,12 @@ describe("parseQuantity", () => {
     expect(parseQuantity("abc")).toBe(0)
   })
 
-  it("returns NaN when only a suffix is supplied (pinned corner case)", () => {
-    // The current implementation parses "m" as parseFloat("m") / 1000 = NaN / 1000.
-    // Pinned to document the behaviour; callers should pass valid quantities.
-    expect(parseQuantity("m")).toBeNaN()
+  it("returns 0 for a bare suffix instead of poisoning totals with NaN", () => {
+    // A malformed quantity (just a suffix, no number) must not propagate NaN
+    // into the aggregated totals and UI percentages.
+    expect(parseQuantity("m")).toBe(0)
+    expect(parseQuantity("Gi")).toBe(0)
+    expect(parseQuantity("Ki")).toBe(0)
   })
 
   it("parses zero", () => {
