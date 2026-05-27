@@ -115,3 +115,58 @@ describe("useConsoleSidebarSections — Cluster Usage gate", () => {
     })
   })
 })
+
+// The sidebar issues two SSARs (nodes/list for Cluster Usage, and
+// backupclasses/update for Backup Classes); this client answers each by the
+// requested resource so the two gates can be exercised independently.
+function makeResourceClient(allow: Record<string, boolean>): K8sClient {
+  const client = new K8sClient()
+  vi.spyOn(client, "list").mockResolvedValue(emptyAppDefList as K8sList<unknown>)
+  vi.spyOn(client, "create").mockImplementation(async (_g, _v, _p, body) => {
+    const resource =
+      (body as SelfSubjectAccessReview).spec?.resourceAttributes?.resource ?? ""
+    return {
+      ...(body as object),
+      status: { allowed: allow[resource] ?? false },
+    } as unknown
+  })
+  return client
+}
+
+// The admin "Backups" entry collides by label with the per-tenant "Backups"
+// item in the Backups group, so locate the admin one by section + URL.
+function findAdminBackupsItem(
+  sections: ReturnType<typeof useConsoleSidebarSections>,
+) {
+  const admin = sections.find((s) => s.title === "Administration")
+  return admin?.items.find((i) => i.to === "/console/backups/backupclasses")
+}
+
+describe("useConsoleSidebarSections — Backup Classes gate", () => {
+  it("shows the admin Backups entry when update on backupclasses is allowed", async () => {
+    const client = makeResourceClient({ backupclasses: true })
+    const { result } = renderHook(() => useConsoleSidebarSections(), {
+      wrapper: makeWrapper(client),
+    })
+    await waitFor(() => {
+      const item = findAdminBackupsItem(result.current)
+      expect(item).toBeDefined()
+      expect(item?.label).toBe("Backups")
+    })
+  })
+
+  it("hides the admin Backups entry when update on backupclasses is denied (read-only tenant)", async () => {
+    // list allowed, update denied — the read a tenant actually has must NOT
+    // be enough to surface the admin entry.
+    const client = makeResourceClient({ backupclasses: false })
+    const { result } = renderHook(() => useConsoleSidebarSections(), {
+      wrapper: makeWrapper(client),
+    })
+    await waitFor(() => {
+      expect(client.create).toHaveBeenCalled()
+      expect(findAdminBackupsItem(result.current)).toBeUndefined()
+    })
+    // The per-tenant "Backups" group item (different URL) remains visible.
+    expect(findItem(result.current, "Plans")).toBeDefined()
+  })
+})

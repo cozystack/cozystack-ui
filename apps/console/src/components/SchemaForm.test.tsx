@@ -102,6 +102,40 @@ describe("SchemaForm immutableMode", () => {
     expect(screen.getByRole("button", { name: /add/i })).toBeDisabled()
   })
 
+  it("binds the key/value editor to an additionalProperties map nested in array items", () => {
+    // spec.strategies[].parameters shape: an array of objects each carrying a
+    // free-form string map. Native rendering shows no Add control here (the
+    // custom ObjectFieldTemplate drops it), so an empty map would be
+    // uneditable — the walker must reach into items and attach the field.
+    const arrayMapSchema = JSON.stringify({
+      type: "object",
+      properties: {
+        strategies: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              parameters: {
+                type: "object",
+                additionalProperties: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    })
+    render(
+      <SchemaForm
+        openAPISchema={arrayMapSchema}
+        formData={{ strategies: [{ parameters: {} }] }}
+        onChange={noop}
+      />,
+    )
+    // AdditionalPropertiesField exposes an explicit add-key input even when the
+    // map is empty; native additionalProperties rendering would not.
+    expect(screen.getByPlaceholderText("Enter key name...")).toBeInTheDocument()
+  })
+
   it("greys out immutable nested fields inside array items", () => {
     const arraySchema = JSON.stringify({
       type: "object",

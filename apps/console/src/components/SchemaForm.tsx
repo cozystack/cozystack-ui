@@ -79,7 +79,11 @@ function addBackupClassWidgets(schema: RJSFSchema, uiSchema: UiSchema = {}): UiS
 }
 
 /**
- * Recursively find all fields with additionalProperties schema and add widget
+ * Recursively find all fields with additionalProperties schema and add widget.
+ * Walks nested objects AND array items, so a map nested inside array elements
+ * (e.g. spec.strategies[].parameters) gets the key/value editor too — without
+ * this, such maps fall back to native rendering whose Add control the custom
+ * ObjectFieldTemplate omits, leaving empty maps with no way to add entries.
  */
 function addAdditionalPropertiesWidgets(schema: RJSFSchema, uiSchema: UiSchema = {}): UiSchema {
   if (!schema || typeof schema !== "object") return uiSchema
@@ -91,29 +95,53 @@ function addAdditionalPropertiesWidgets(schema: RJSFSchema, uiSchema: UiSchema =
 
   for (const [key, value] of Object.entries(properties)) {
     if (typeof value === "object" && value !== null) {
-      const fieldSchema = value as any
-      // Check if this field has additionalProperties with a schema
-      const hasAdditionalPropertiesSchema =
-        fieldSchema.type === "object" &&
-        (!fieldSchema.properties || Object.keys(fieldSchema.properties).length === 0) &&
-        typeof fieldSchema.additionalProperties === "object" &&
-        fieldSchema.additionalProperties !== null &&
-        fieldSchema.additionalProperties !== true
-
-      if (hasAdditionalPropertiesSchema) {
-        // Found a field with additionalProperties schema - use custom field
-        result[key] = {
-          ...result[key],
-          "ui:field": "AdditionalPropertiesField",
-        }
-      } else if (fieldSchema.properties) {
-        // Recursively process nested objects
-        result[key] = addAdditionalPropertiesWidgets(fieldSchema, result[key] as UiSchema)
-      }
+      const bound = bindAdditionalProperties(value as RJSFSchema, result[key] as UiSchema | undefined)
+      if (bound !== undefined) result[key] = bound
     }
   }
 
   return result
+}
+
+/**
+ * Resolve the uiSchema fragment for one schema node: bind the custom field to
+ * an additionalProperties map, recurse into nested objects, or recurse into
+ * array `items`. Returns the (possibly unchanged) ui fragment.
+ */
+function bindAdditionalProperties(
+  fieldSchema: RJSFSchema,
+  uiNode: UiSchema | undefined,
+): UiSchema | undefined {
+  const node = fieldSchema as any
+
+  const isAdditionalPropertiesMap =
+    node.type === "object" &&
+    (!node.properties || Object.keys(node.properties).length === 0) &&
+    typeof node.additionalProperties === "object" &&
+    node.additionalProperties !== null &&
+    node.additionalProperties !== true
+
+  if (isAdditionalPropertiesMap) {
+    return { ...uiNode, "ui:field": "AdditionalPropertiesField" }
+  }
+
+  if (node.properties) {
+    return addAdditionalPropertiesWidgets(fieldSchema, uiNode as UiSchema)
+  }
+
+  if (
+    node.type === "array" &&
+    node.items &&
+    typeof node.items === "object" &&
+    !Array.isArray(node.items)
+  ) {
+    const itemsUi = bindAdditionalProperties(node.items as RJSFSchema, (uiNode as any)?.items)
+    if (itemsUi !== undefined) {
+      return { ...uiNode, items: itemsUi }
+    }
+  }
+
+  return uiNode
 }
 
 /**
