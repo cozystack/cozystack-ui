@@ -46,11 +46,10 @@ describe("ClusterUsageAggregates", () => {
 
   it("renders the four standard cards in order CPU, Memory, Storage, Pods", () => {
     render(<ClusterUsageAggregates aggregates={empty()} nodeSummary={summary()} />)
-    const headings = screen.getAllByText(/CPU|Memory|Storage|Pods/i)
+    const headings = screen.getAllByText(/^(CPU|Memory|Storage|Pods)$/)
     const labels = headings.map((h) => h.textContent)
-    expect(labels).toEqual(
-      expect.arrayContaining(["CPU", "Memory", "Storage", "Pods"]),
-    )
+    // Exact array (not arrayContaining) so the card order is actually pinned.
+    expect(labels).toEqual(["CPU", "Memory", "Storage", "Pods"])
   })
 
   it("does not render the extended-resources section when none are present", () => {

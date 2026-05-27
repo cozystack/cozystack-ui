@@ -95,8 +95,12 @@ describe("ClusterUsageTable", () => {
       />,
     )
     const headers = screen.getAllByRole("columnheader").map((h) => h.textContent)
-    expect(headers).toContain("nvidia.com/gpu")
-    expect(headers).toContain("amd.com/gpu")
+    const nvidiaAt = headers.indexOf("nvidia.com/gpu")
+    const amdAt = headers.indexOf("amd.com/gpu")
+    expect(nvidiaAt).toBeGreaterThanOrEqual(0)
+    expect(amdAt).toBeGreaterThanOrEqual(0)
+    // Columns must follow extendedKeys order: nvidia before amd.
+    expect(nvidiaAt).toBeLessThan(amdAt)
   })
 
   it("renders em dash in extended-resource cell when the node does not expose it", () => {
