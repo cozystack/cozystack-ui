@@ -85,14 +85,13 @@ describe("useConsoleSidebarSections — Cluster Usage gate", () => {
     const { result } = renderHook(() => useConsoleSidebarSections(), {
       wrapper: makeWrapper(client),
     })
-    // Wait for the SSAR query to settle so the absence is real.
+    // Wait until the SSAR request has actually fired (so the absence is the
+    // result of a deny, not of the query still being in flight) and the
+    // gated entry is not present.
     await waitFor(() => {
-      const adminSection = result.current.find((s) => s.title === "Administration")
-      expect(adminSection).toBeDefined()
+      expect(client.create).toHaveBeenCalled()
+      expect(findItem(result.current, "Cluster Usage")).toBeUndefined()
     })
-    // Need an explicit settle window for the SSAR query.
-    await new Promise((r) => setTimeout(r, 0))
-    expect(findItem(result.current, "Cluster Usage")).toBeUndefined()
   })
 
   it("hides the Cluster Usage entry while SSAR is still loading (no flicker)", () => {
@@ -108,7 +107,11 @@ describe("useConsoleSidebarSections — Cluster Usage gate", () => {
     const { result } = renderHook(() => useConsoleSidebarSections(), {
       wrapper: makeWrapper(client),
     })
-    await new Promise((r) => setTimeout(r, 10))
-    expect(findItem(result.current, "Cluster Usage")).toBeUndefined()
+    // Wait until the failing SSAR request has fired and settled; the gated
+    // entry must stay absent rather than relying on an arbitrary delay.
+    await waitFor(() => {
+      expect(client.create).toHaveBeenCalled()
+      expect(findItem(result.current, "Cluster Usage")).toBeUndefined()
+    })
   })
 })
