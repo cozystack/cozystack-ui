@@ -88,8 +88,12 @@ function memoryCell(totals: ResourceTotals, ready: boolean, podsUnavailable: boo
   )
 }
 
-function extendedCell(totals: ResourceTotals | undefined, podsUnavailable: boolean) {
-  if (!totals) return <span className="text-slate-400">—</span>
+function extendedCell(
+  totals: ResourceTotals | undefined,
+  ready: boolean,
+  podsUnavailable: boolean,
+) {
+  if (!ready || !totals) return <span className="text-slate-400">—</span>
   return (
     <div className="space-y-0.5 text-xs tabular-nums text-slate-700">
       <div>
@@ -307,7 +311,7 @@ export function ClusterUsageTable({
                 </td>
                 {extendedKeys.map((k) => (
                   <td key={k} className="px-4 py-3 align-top">
-                    {extendedCell(r.extended[k], podsUnavailable)}
+                    {extendedCell(r.extended[k], r.ready, podsUnavailable)}
                   </td>
                 ))}
                 <td className="px-4 py-3 tabular-nums text-xs text-slate-500">{r.age}</td>

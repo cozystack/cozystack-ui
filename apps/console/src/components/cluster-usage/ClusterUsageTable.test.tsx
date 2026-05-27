@@ -110,6 +110,25 @@ describe("ClusterUsageTable", () => {
     expect(within(tr).getAllByText("—").length).toBeGreaterThan(0)
   })
 
+  it("collapses extended-resource cells to em dash for a NotReady node", () => {
+    const gpu = { "nvidia.com/gpu": { capacity: 2, allocatable: 2, requested: 1 } }
+    render(
+      <ClusterUsageTable
+        rows={[
+          row("ready-gpu", { ready: true, extended: gpu }),
+          row("down-gpu", { ready: false, extended: gpu }),
+        ]}
+        extendedKeys={["nvidia.com/gpu"]}
+      />,
+    )
+    const readyRow = screen.getByText("ready-gpu").closest("tr")!
+    const downRow = screen.getByText("down-gpu").closest("tr")!
+    // The Ready node surfaces its capacity-derived numbers...
+    expect(within(readyRow).getByText("capacity 2")).toBeInTheDocument()
+    // ...while the NotReady node must not render capacity for the extended cell.
+    expect(within(downRow).queryByText("capacity 2")).not.toBeInTheDocument()
+  })
+
   it("renders the age column verbatim from row.age", () => {
     render(
       <ClusterUsageTable
