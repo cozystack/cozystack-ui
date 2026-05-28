@@ -28,17 +28,24 @@ const defaultQueryClient = new QueryClient({
 
 interface K8sProviderProps {
   config?: K8sClientConfig
+  /**
+   * Pre-built K8sClient instance. When supplied, replaces the client that
+   * would otherwise be constructed from `config`. Primary use case: tests
+   * that need to inject a mock; production code should pass `config` and
+   * let the provider build the real client.
+   */
+  client?: K8sClient
   queryClient?: QueryClient
   children: ReactNode
 }
 
-export function K8sProvider({ config, queryClient, children }: K8sProviderProps) {
-  const client = useMemo(() => new K8sClient(config), [config])
+export function K8sProvider({ config, client, queryClient, children }: K8sProviderProps) {
+  const resolved = useMemo(() => client ?? new K8sClient(config), [client, config])
   const qc = queryClient ?? defaultQueryClient
 
   return (
     <QueryClientProvider client={qc}>
-      <K8sClientContext.Provider value={client}>{children}</K8sClientContext.Provider>
+      <K8sClientContext.Provider value={resolved}>{children}</K8sClientContext.Provider>
     </QueryClientProvider>
   )
 }
