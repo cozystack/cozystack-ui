@@ -210,7 +210,7 @@ export function ClusterUsageTable({
                 <th
                   key={n.name}
                   data-node-col={n.name}
-                  className="px-4 py-3 text-left align-top font-normal"
+                  className="min-w-44 px-4 py-3 text-left align-top font-normal"
                 >
                   <div className="space-y-1.5">
                     <div className="text-sm font-semibold text-slate-900">{n.name}</div>

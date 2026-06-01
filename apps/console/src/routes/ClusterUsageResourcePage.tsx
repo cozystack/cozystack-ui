@@ -2,12 +2,11 @@ import { useMemo } from "react"
 import { Link, useParams } from "react-router"
 import { Section, Spinner } from "@cozystack/ui"
 import { useK8sList } from "@cozystack/k8s-client"
-import { APPS_GROUP } from "@cozystack/types"
 import { ChevronLeft } from "lucide-react"
 import { parseQuantity, humanizeBytes, humanizeCpu } from "../lib/k8s-quantity.ts"
-import { useApplicationDefinitions } from "../lib/app-definitions.ts"
-import { useTenantContext } from "../lib/tenant-context.tsx"
+import { workloadOwner } from "../lib/workload.ts"
 import { TENANT_NAMESPACE_PREFIX } from "../lib/constants.ts"
+import { WorkloadCell } from "../components/WorkloadCell.tsx"
 import type { Pod } from "../lib/cluster-usage/types.ts"
 
 /**
@@ -54,19 +53,6 @@ function podResourceRequest(pod: Pod, resource: string): number {
   return total
 }
 
-/** Derive the owning application (kind + name) of a pod from its labels. */
-function podOwner(pod: Pod): { kind: string; name: string } {
-  const labels = pod.metadata.labels ?? {}
-  const kind = labels[`${APPS_GROUP}/application.kind`]
-  const name =
-    labels[`${APPS_GROUP}/application.name`] ??
-    labels["app.kubernetes.io/instance"] ??
-    labels["app.kubernetes.io/name"]
-  if (kind && name) return { kind, name }
-  if (name) return { kind: kind ?? "—", name }
-  return { kind: kind ?? "—", name: pod.metadata.name }
-}
-
 export function ClusterUsageResourcePage() {
   const params = useParams()
   const resource = params["*"] ?? ""
@@ -76,20 +62,6 @@ export function ClusterUsageResourcePage() {
     isLoading,
     error,
   } = useK8sList<Pod>({ apiGroup: "", apiVersion: "v1", plural: "pods" })
-
-  // Map application kind → plural so a consumer row can deep-link to the
-  // deployed application's Console page (/console/<plural>/<name>).
-  const { data: appDefs } = useApplicationDefinitions()
-  const { selectTenant } = useTenantContext()
-  const kindToPlural = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const ad of appDefs?.items ?? []) {
-      const kind = ad.spec?.application.kind
-      const plural = ad.spec?.application.plural
-      if (kind && plural) map.set(kind, plural)
-    }
-    return map
-  }, [appDefs])
 
   const { rows, totalRequested } = useMemo(() => {
     const byKey = new Map<string, UsageRow>()
@@ -101,7 +73,7 @@ export function ClusterUsageResourcePage() {
       // Only tenant namespaces are relevant here — skip system/control-plane
       // namespaces (cozy-*, kube-system, …) that also consume the resource.
       if (!namespace.startsWith(TENANT_NAMESPACE_PREFIX)) continue
-      const { kind, name } = podOwner(pod)
+      const { kind, name } = workloadOwner(pod.metadata.labels, pod.metadata.name)
       const key = `${namespace}/${kind}/${name}`
       const existing = byKey.get(key)
       if (existing) {
@@ -163,33 +135,11 @@ export function ClusterUsageResourcePage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((r) => {
-                // Deep-link the workload to its deployed application in the
-                // Console, but only when it is a real app instance: the kind
-                // must resolve to a plural and it must live in a tenant
-                // namespace (so we can switch the Console's tenant context).
-                const plural = kindToPlural.get(r.kind)
-                const tenant = r.namespace.startsWith(TENANT_NAMESPACE_PREFIX)
-                  ? r.namespace.slice(TENANT_NAMESPACE_PREFIX.length)
-                  : null
-                const appHref = plural && tenant ? `/console/${plural}/${r.name}` : null
                 return (
                   <tr key={`${r.namespace}/${r.kind}/${r.name}`} className="hover:bg-slate-50">
                     <td className="px-3 py-2 text-slate-700">{r.namespace}</td>
                     <td className="px-3 py-2">
-                      {appHref ? (
-                        <Link
-                          to={appHref}
-                          onClick={() => tenant && selectTenant(tenant)}
-                          className="font-medium text-blue-700 hover:text-blue-800 hover:underline"
-                        >
-                          {r.name}
-                        </Link>
-                      ) : (
-                        <span className="font-medium text-slate-700">{r.name}</span>
-                      )}
-                      {r.kind !== "—" ? (
-                        <div className="text-xs text-slate-400">{r.kind}</div>
-                      ) : null}
+                      <WorkloadCell namespace={r.namespace} kind={r.kind} name={r.name} />
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-700">
                       {formatResource(resource, r.requested)}
