@@ -1,7 +1,7 @@
 import { useSelfSubjectAccessReview } from "@cozystack/k8s-client"
 
 // BackupClass is cluster-scoped. Tenants already hold get/list/watch on it
-// (that's what powers the BackupClassWidget dropdown), so a read gate would
+// (that's what powers the backupClassName dropdown), so a read gate would
 // not exclude them — only write does. Gating on `update` is what makes the
 // Backup Classes area admin-only. Fail closed: loading and error states
 // resolve as "not allowed" so the sidebar entry never flickers in then out.

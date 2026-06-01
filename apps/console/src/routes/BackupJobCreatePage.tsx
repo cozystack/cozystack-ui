@@ -22,20 +22,11 @@ export function BackupJobCreatePage() {
     "backupjobs.backups.cozystack.io"
   )
 
-  // Get BackupClasses (cluster-scoped)
-  const { data: backupClassesData } = useK8sList<any>({
-    apiGroup: "backups.cozystack.io",
-    apiVersion: "v1alpha1",
-    plural: "backupclasses",
-  })
-
-  // Get Plans in the tenant namespace (optional reference)
-  const { data: plansData } = useK8sList<any>({
-    apiGroup: "backups.cozystack.io",
-    apiVersion: "v1alpha1",
-    plural: "plans",
-    namespace: tenantNamespace ?? "",
-  }, { enabled: !!tenantNamespace })
+  // backupClassName, planRef.name and applicationRef.kind are dynamic dropdowns
+  // driven by the CRD's x-cozystack-options keyword (backupclass / plan /
+  // appkind sources), rendered by DynamicOptionsWidget. Only applicationRef.name
+  // stays on the client-side enumMap below, because it depends on the chosen
+  // kind — a context the Option contract cannot express.
 
   // Resolve instances for the selected application kind.
   // Mirrors BackupRestoreJobCreatePage: kind dropdown is gated to
@@ -74,28 +65,13 @@ export function BackupJobCreatePage() {
       console.error("Failed to parse BackupJob schema:", e)
       return null
     }
-    const kinds: string[] = selectedApiGroup === "apps.cozystack.io"
-      ? appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
-      : []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
-    const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
-    const plans = plansData?.items.map((p: any) => p.metadata.name) ?? []
 
     const enumMap: Record<string, string[]> = {}
-    if (kinds.length > 0) {
-      enumMap["applicationRef.kind"] = kinds
-    }
+    // applicationRef.name depends on the selected kind, so it cannot be served
+    // by the Option contract — keep it on the client-side enumMap.
     if (selectedApiGroup === "apps.cozystack.io" && selectedKind && instances.length > 0) {
       enumMap["applicationRef.name"] = instances
-    }
-    if (backupClasses.length > 0) {
-      enumMap["backupClassName"] = backupClasses
-    }
-    if (plans.length > 0) {
-      // planRef is optional in the CRD (default ""). Prepend an empty value
-      // so the dropdown opens with no plan selected — matches the CRD default
-      // and avoids accidentally pinning the BackupJob to the first listed Plan.
-      enumMap["planRef.name"] = ["", ...plans]
     }
 
     const enriched = enrichSchemaWithEnums(base, [], enumMap)
@@ -107,7 +83,7 @@ export function BackupJobCreatePage() {
     }
 
     return JSON.stringify(enriched)
-  }, [baseSchema, appDefs, backupClassesData, plansData, instancesData, selectedKind, selectedApiGroup])
+  }, [baseSchema, instancesData, selectedKind, selectedApiGroup])
 
   const handleSubmit = async () => {
     if (!tenantNamespace) {

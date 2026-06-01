@@ -22,12 +22,11 @@ export function BackupPlanCreatePage() {
     "plans.backups.cozystack.io"
   )
 
-  // Get BackupClasses
-  const { data: backupClassesData } = useK8sList<any>({
-    apiGroup: "backups.cozystack.io",
-    apiVersion: "v1alpha1",
-    plural: "backupclasses",
-  })
+  // backupClassName and applicationRef.kind are dynamic dropdowns driven by the
+  // CRD's x-cozystack-options keyword (backupclass / appkind sources), rendered
+  // by DynamicOptionsWidget. Only applicationRef.name stays on the client-side
+  // enumMap below, because it depends on the chosen kind — a context the Option
+  // contract cannot express.
 
   // Get instances for selected kind.
   // Strict undefined check so an explicit empty string from the user means
@@ -64,26 +63,15 @@ export function BackupPlanCreatePage() {
       console.error("Failed to parse Plan schema:", e)
       return null
     }
-    // ApplicationDefinitions are exclusive to apps.cozystack.io — show the
-    // Kind dropdown only when the selected apiGroup matches; otherwise leave
-    // it as a free-text input (no enum hint).
-    const kinds: string[] = selectedApiGroup === "apps.cozystack.io"
-      ? appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
-      : []
-    const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
     const enumMap: Record<string, string[]> = {}
 
-    // Add enum values for dropdowns
-    if (kinds.length > 0) {
-      enumMap["applicationRef.kind"] = kinds
-    }
+    // applicationRef.name depends on the selected kind, so it cannot be served
+    // by the Option contract — keep it on the client-side enumMap. Only fill it
+    // when the cozystack apiGroup matches (ApplicationDefinitions cover it).
     if (selectedApiGroup === "apps.cozystack.io" && selectedKind && instances.length > 0) {
       enumMap["applicationRef.name"] = instances
-    }
-    if (backupClasses.length > 0) {
-      enumMap["backupClassName"] = backupClasses
     }
 
     // Enrich schema with enum values
@@ -101,7 +89,7 @@ export function BackupPlanCreatePage() {
     }
 
     return JSON.stringify(enriched)
-  }, [baseSchema, appDefs, backupClassesData, instancesData, selectedKind, selectedApiGroup])
+  }, [baseSchema, instancesData, selectedKind, selectedApiGroup])
 
   const handleSubmit = async () => {
     if (!tenantNamespace) {
