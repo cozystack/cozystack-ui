@@ -91,10 +91,9 @@ export function ClusterUsageResourcePage() {
     return map
   }, [appDefs])
 
-  const { rows, totalRequested, totalPods } = useMemo(() => {
+  const { rows, totalRequested } = useMemo(() => {
     const byKey = new Map<string, UsageRow>()
     let totalRequested = 0
-    let totalPods = 0
     for (const pod of podsList?.items ?? []) {
       const requested = podResourceRequest(pod, resource)
       if (requested <= 0) continue
@@ -112,10 +111,9 @@ export function ClusterUsageResourcePage() {
         byKey.set(key, { namespace, kind, name, pods: 1, requested })
       }
       totalRequested += requested
-      totalPods += 1
     }
     const rows = [...byKey.values()].sort((a, b) => b.requested - a.requested)
-    return { rows, totalRequested, totalPods }
+    return { rows, totalRequested }
   }, [podsList, resource])
 
   return (
@@ -159,15 +157,13 @@ export function ClusterUsageResourcePage() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
                 <th className="px-3 py-2 font-medium text-slate-600">Tenant (namespace)</th>
-                <th className="px-3 py-2 font-medium text-slate-600">Kind</th>
-                <th className="px-3 py-2 font-medium text-slate-600">Name</th>
-                <th className="px-3 py-2 text-right font-medium text-slate-600">Pods</th>
+                <th className="px-3 py-2 font-medium text-slate-600">Workload</th>
                 <th className="px-3 py-2 text-right font-medium text-slate-600">Requested</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((r) => {
-                // Deep-link the consumer to its deployed application in the
+                // Deep-link the workload to its deployed application in the
                 // Console, but only when it is a real app instance: the kind
                 // must resolve to a plural and it must live in a tenant
                 // namespace (so we can switch the Console's tenant context).
@@ -179,21 +175,22 @@ export function ClusterUsageResourcePage() {
                 return (
                   <tr key={`${r.namespace}/${r.kind}/${r.name}`} className="hover:bg-slate-50">
                     <td className="px-3 py-2 text-slate-700">{r.namespace}</td>
-                    <td className="px-3 py-2 text-slate-600">{r.kind}</td>
                     <td className="px-3 py-2">
                       {appHref ? (
                         <Link
                           to={appHref}
                           onClick={() => tenant && selectTenant(tenant)}
-                          className="text-blue-700 hover:text-blue-800 hover:underline"
+                          className="font-medium text-blue-700 hover:text-blue-800 hover:underline"
                         >
                           {r.name}
                         </Link>
                       ) : (
-                        <span className="text-slate-700">{r.name}</span>
+                        <span className="font-medium text-slate-700">{r.name}</span>
                       )}
+                      {r.kind !== "—" ? (
+                        <div className="text-xs text-slate-400">{r.kind}</div>
+                      ) : null}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.pods}</td>
                     <td className="px-3 py-2 text-right tabular-nums text-slate-700">
                       {formatResource(resource, r.requested)}
                     </td>
@@ -203,10 +200,9 @@ export function ClusterUsageResourcePage() {
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50 font-medium">
-                <td className="px-3 py-2 text-slate-700" colSpan={3}>
-                  Total · {rows.length} consumer{rows.length === 1 ? "" : "s"}
+                <td className="px-3 py-2 text-slate-700" colSpan={2}>
+                  Total · {rows.length} workload{rows.length === 1 ? "" : "s"}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-700">{totalPods}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-slate-700">
                   {formatResource(resource, totalRequested)}
                 </td>

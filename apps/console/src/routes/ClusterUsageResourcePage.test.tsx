@@ -111,9 +111,10 @@ describe("ClusterUsageResourcePage", () => {
     const row = await screen.findByText("vm1")
     const tr = row.closest("tr") as HTMLElement
     expect(within(tr).getByText("tenant-foo")).toBeInTheDocument()
+    // Kind is shown as a subtitle within the Workload cell.
     expect(within(tr).getByText("VMInstance")).toBeInTheDocument()
     const cells = tr.querySelectorAll("td")
-    expect(cells[cells.length - 2].textContent).toBe("2")
+    // Columns: Tenant | Workload | Requested — last cell is the summed request.
     expect(cells[cells.length - 1].textContent).toBe("3")
     expect(screen.queryByText("tenant-bar")).toBeNull()
   })
