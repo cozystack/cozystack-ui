@@ -10,6 +10,26 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react"
+import {
+  siApachekafka,
+  siClickhouse,
+  siEtcd,
+  siHarbor,
+  siKubernetes,
+  siMariadb,
+  siMongodb,
+  siNatsdotio,
+  siNginx,
+  siOpensearch,
+  siPostgresql,
+  siPrometheus,
+  siQdrant,
+  siRabbitmq,
+  siRedis,
+  siVault,
+  siWireguard,
+  type SimpleIcon as SimpleIconData,
+} from "simple-icons"
 
 /**
  * TODO(bff): move both of these mappings to the server. Ideally each
@@ -18,34 +38,35 @@ import {
  * doesn't need a hardcoded table. Until then we keep the mapping here and
  * fall through to the generic Lucide fallback.
  */
-const KIND_TO_SIMPLE_ICON: Record<string, string> = {
-  // IaaS
-  Bucket: "amazons3",
-
+const KIND_TO_SIMPLE_ICON: Record<string, SimpleIconData> = {
   // PaaS
-  ClickHouse: "clickhouse",
-  Harbor: "harbor",
-  Kafka: "apachekafka",
-  MariaDB: "mariadb",
-  MongoDB: "mongodb",
-  NATS: "natsdotio",
-  OpenBAO: "vault",
-  Postgres: "postgresql",
-  Qdrant: "qdrant",
-  RabbitMQ: "rabbitmq",
-  Redis: "redis",
+  ClickHouse: siClickhouse,
+  Harbor: siHarbor,
+  Kafka: siApachekafka,
+  MariaDB: siMariadb,
+  MongoDB: siMongodb,
+  NATS: siNatsdotio,
+  OpenBAO: siVault,
+  Postgres: siPostgresql,
+  Qdrant: siQdrant,
+  RabbitMQ: siRabbitmq,
+  Redis: siRedis,
 
   // NaaS
-  HTTPCache: "nginx",
-  VPN: "wireguard",
+  HTTPCache: siNginx,
+  VPN: siWireguard,
 
   // Administration
-  Etcd: "etcd",
-  Ingress: "nginx",
-  Kubernetes: "kubernetes",
-  Monitoring: "prometheus",
-  OpenSearch: "opensearch",
+  Etcd: siEtcd,
+  Ingress: siNginx,
+  Kubernetes: siKubernetes,
+  Monitoring: siPrometheus,
+  OpenSearch: siOpensearch,
 }
+
+const ICON_BY_SLUG: Record<string, SimpleIconData> = Object.fromEntries(
+  Object.values(KIND_TO_SIMPLE_ICON).map((icon) => [icon.slug, icon]),
+)
 
 /**
  * Lucide fallbacks for kinds that don't have a canonical brand logo in
@@ -53,6 +74,9 @@ const KIND_TO_SIMPLE_ICON: Record<string, string> = {
  */
 const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon | ComponentType<{ className?: string }>> = {
   BootBox: Server,
+  // Amazon S3's logo was removed from Simple Icons, so the S3-compatible
+  // Bucket kind falls back to a generic storage glyph.
+  Bucket: Database,
   ExternalDNS: Globe,
   TCPBalancer: Network,
   FoundationDB: Database,
@@ -65,7 +89,7 @@ const KIND_TO_LUCIDE_ICON: Record<string, LucideIcon | ComponentType<{ className
 }
 
 export function simpleIconSlug(kind: string): string | undefined {
-  return KIND_TO_SIMPLE_ICON[kind]
+  return KIND_TO_SIMPLE_ICON[kind]?.slug
 }
 
 export function lucideIcon(
@@ -79,12 +103,20 @@ export function lucideIcon(
  * CSS `mask-image`. The span takes its colour from `currentColor`, so active
  * sidebar items pick up the blue accent and inactive ones stay slate-400 —
  * exactly like the Lucide icons next to them.
+ *
+ * The SVG is inlined from the bundled simple-icons package as a data URI, so it
+ * is served from the app's own origin — nothing is fetched from a CDN.
  */
 export function simpleIconComponent(slug: string): ComponentType<{ className?: string }> {
-  // cdn.simpleicons.org rate-limits aggressively (returns 403 from many
-  // browsers and crawlers). Pull the SVG straight out of the simple-icons
-  // npm package via jsDelivr — same files, no rate limits.
-  const url = `url(https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/${slug}.svg)`
+  const icon: SimpleIconData | undefined = ICON_BY_SLUG[slug]
+  if (!icon) {
+    // Unknown slug — render an empty placeholder rather than throwing.
+    return function MissingIcon({ className }) {
+      return <span aria-hidden className={className} />
+    }
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${icon.path}"/></svg>`
+  const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
   return function SimpleIcon({ className }) {
     return (
       <span

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router"
 import { ChevronLeft, FileCode, FormInput } from "lucide-react"
 import yaml from "js-yaml"
@@ -14,7 +14,12 @@ import { useTenantContext } from "../lib/tenant-context.tsx"
 import { composeResource } from "../lib/app-resource.ts"
 import { prepareUpdateSpec } from "../lib/prepare-update.ts"
 import { SchemaForm } from "../components/SchemaForm.tsx"
-import { YamlEditor } from "../components/YamlEditor.tsx"
+
+// Lazy-load the YAML editor so monaco and its workers are code-split into their
+// own chunk, fetched only when the YAML view is opened.
+const YamlEditor = lazy(() =>
+  import("../components/YamlEditor.tsx").then((m) => ({ default: m.YamlEditor })),
+)
 
 type Mode = "form" | "yaml"
 
@@ -286,7 +291,15 @@ export function ApplicationOrderPage({
             </div>
           )}
           <div className="flex-1">
-            <YamlEditor value={yamlText} onChange={setYamlText} />
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center">
+                  <Spinner />
+                </div>
+              }
+            >
+              <YamlEditor value={yamlText} onChange={setYamlText} />
+            </Suspense>
           </div>
         </div>
       )}
