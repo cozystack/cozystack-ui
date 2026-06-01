@@ -67,7 +67,12 @@ export class K8sClient {
     }
 
     if (res.status === 204) return undefined as T
-    return res.json() as Promise<T>
+    // Some endpoints (e.g. KubeVirt action subresources like
+    // virtualmachines/{name}/restart) return 2xx with an empty body;
+    // res.json() would throw "Unexpected end of JSON input" on "".
+    const text = await res.text()
+    if (!text) return undefined as T
+    return JSON.parse(text) as T
   }
 
   private buildPath(
