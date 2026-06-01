@@ -1,8 +1,9 @@
 /**
  * Parse a Kubernetes resource.Quantity string into a numeric value in
- * the canonical units (cores for CPU, bytes for memory). Behaviour is
- * preserved verbatim from the QuotaDisplay helpers this module was
- * extracted from; see the test file for the pinned edge cases.
+ * the canonical units (cores for CPU, bytes for memory). Extracted from
+ * the QuotaDisplay helpers; nano/micro (n/u) support was added on top for
+ * the nanocore CPU values metrics-server reports. See the test file for
+ * the pinned edge cases.
  */
 export function parseQuantity(s: string): number {
   if (!s) return 0
@@ -11,6 +12,9 @@ export function parseQuantity(s: string): number {
   const n = parseFloat(s)
   if (!Number.isFinite(n)) return 0
   if (s.endsWith("m")) return n / 1000
+  // Decimal SI sub-units — metrics-server reports CPU usage in nanocores
+  if (s.endsWith("n")) return n / 1e9
+  if (s.endsWith("u")) return n / 1e6
   // Binary SI suffixes (powers of 1024)
   if (s.endsWith("Ki")) return n * 1024
   if (s.endsWith("Mi")) return n * 1024 ** 2
