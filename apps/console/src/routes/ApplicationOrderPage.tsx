@@ -13,7 +13,7 @@ import {
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { composeResource } from "../lib/app-resource.ts"
 import { prepareUpdateSpec } from "../lib/prepare-update.ts"
-import { SchemaForm } from "../components/SchemaForm.tsx"
+import { SchemaForm, type SchemaFormHandle } from "../components/SchemaForm.tsx"
 
 // Lazy-load the YAML editor so monaco and its workers are code-split into their
 // own chunk, fetched only when the YAML view is opened.
@@ -54,6 +54,7 @@ export function ApplicationOrderPage({
   // the value the user actually viewed.
   const initialSpecRef = useRef<unknown>(editMode?.initialSpec)
   const initialSpecCapturedRef = useRef(false)
+  const schemaFormRef = useRef<SchemaFormHandle>(null)
   useEffect(() => {
     if (editMode && !initialSpecCapturedRef.current) {
       initialSpecCapturedRef.current = true
@@ -124,6 +125,13 @@ export function ApplicationOrderPage({
     const snap = snapshot()
     if (!snap.name) {
       alert("Please set a resource name.")
+      return
+    }
+    // The Deploy button lives outside RJSF and bypasses its submit, so trigger
+    // validation explicitly in form mode. RJSF renders the errors inline; abort
+    // so an invalid spec (e.g. a disk row left without a name) is never sent to
+    // the API. YAML mode hand-authors the spec and is left to the API to reject.
+    if (mode === "form" && schemaFormRef.current && !schemaFormRef.current.validate()) {
       return
     }
     const body = composeResource(ad, tenantNamespace, snap.name, snap.spec)
@@ -273,6 +281,7 @@ export function ApplicationOrderPage({
             {ad.spec?.application.openAPISchema && (
               <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <SchemaForm
+                  ref={schemaFormRef}
                   openAPISchema={ad.spec.application.openAPISchema}
                   keysOrder={ad.spec?.dashboard?.keysOrder}
                   formData={spec}

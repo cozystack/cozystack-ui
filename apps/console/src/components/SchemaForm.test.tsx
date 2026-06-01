@@ -1,6 +1,7 @@
+import { createRef } from "react"
 import { describe, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
-import { SchemaForm } from "./SchemaForm.tsx"
+import { render, screen, act } from "@testing-library/react"
+import { SchemaForm, type SchemaFormHandle } from "./SchemaForm.tsx"
 import { IMMUTABLE_HELP_TEXT } from "../lib/immutable-paths.ts"
 
 const schema = JSON.stringify({
@@ -136,5 +137,44 @@ describe("SchemaForm immutableMode", () => {
     expect(nameInput).toBeDisabled()
     expect(sizeInput).not.toBeDisabled()
     expect(screen.getByText(IMMUTABLE_HELP_TEXT)).toBeInTheDocument()
+  })
+})
+
+describe("SchemaForm validate handle", () => {
+  const requiredSchema = JSON.stringify({
+    type: "object",
+    required: ["name"],
+    properties: { name: { type: "string" }, note: { type: "string" } },
+  })
+
+  function validate(ref: React.RefObject<SchemaFormHandle | null>): boolean | undefined {
+    let result: boolean | undefined
+    act(() => {
+      result = ref.current?.validate()
+    })
+    return result
+  }
+
+  it("reports invalid through the ref when a required field is missing", () => {
+    const ref = createRef<SchemaFormHandle>()
+    render(
+      <SchemaForm ref={ref} openAPISchema={requiredSchema} formData={{}} onChange={noop} />,
+    )
+
+    expect(validate(ref)).toBe(false)
+  })
+
+  it("reports valid through the ref once the required field is populated", () => {
+    const ref = createRef<SchemaFormHandle>()
+    render(
+      <SchemaForm
+        ref={ref}
+        openAPISchema={requiredSchema}
+        formData={{ name: "demo-disk" }}
+        onChange={noop}
+      />,
+    )
+
+    expect(validate(ref)).toBe(true)
   })
 })
