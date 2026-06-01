@@ -1,135 +1,94 @@
-import { useMemo } from "react"
 import { Link, useParams } from "react-router"
 import { Section, Spinner } from "@cozystack/ui"
-import { useK8sList } from "@cozystack/k8s-client"
-import { APPS_GROUP } from "@cozystack/types"
 import { ChevronLeft } from "lucide-react"
-import { parseQuantity, humanizeBytes, humanizeCpu } from "../lib/k8s-quantity.ts"
-import { useApplicationDefinitions } from "../lib/app-definitions.ts"
-import { useTenantContext } from "../lib/tenant-context.tsx"
-import { TENANT_NAMESPACE_PREFIX } from "../lib/constants.ts"
-import type { Pod } from "../lib/cluster-usage/types.ts"
+import { humanizeBytes, humanizeCpu } from "../lib/k8s-quantity.ts"
+import { useClusterUsageData } from "../hooks/useClusterUsageData.tsx"
+import {
+  STANDARD_RESOURCE_KEY_SET,
+  type ResourceTotals,
+  type StandardResourceKey,
+} from "../lib/cluster-usage/types.ts"
 
 /**
- * Admin → Cluster Usage → per-resource drill-down. Given a resource key
- * (e.g. `cpu`, `memory`, or an extended resource like
- * `nvidia.com/GH100_H200_SXM_141GB`) this lists who consumes it across the
- * whole cluster, grouped by tenant namespace and the owning application.
+ * Admin → Resources → per-resource usage. Reached by clicking a resource on
+ * the Resources page (/admin/resources-usage/r/<key>). Shows the same usage
+ * view as the Resources table, pivoted to nodes: one row per node with the
+ * selected resource's Capacity / Allocatable / Requested / Used.
  *
- * Ownership is read from pod labels — Cozystack stamps
- * `apps.cozystack.io/application.{kind,name}` on every workload pod; we
- * fall back to the Helm `app.kubernetes.io/instance` label and finally to
- * the bare pod name so nothing is silently dropped.
- *
- * The resource key arrives via a splat param (`cluster-usage/r/*`) so keys
- * containing slashes (every `vendor.com/model` GPU name) survive routing
- * without encoding.
+ * The resource key arrives via a splat param so keys containing slashes
+ * (every vendor.com/model GPU name) survive routing without encoding.
  */
 
-interface UsageRow {
-  namespace: string
-  kind: string
-  name: string
-  pods: number
-  requested: number
+type ResourceFormat = "cpu" | "bytes" | "count"
+
+function formatFor(resource: string): ResourceFormat {
+  if (resource === "cpu") return "cpu"
+  if (resource === "memory" || resource === "ephemeral-storage") return "bytes"
+  return "count"
 }
 
-function formatResource(resource: string, value: number): string {
-  if (resource === "cpu") return humanizeCpu(value)
-  if (resource === "memory" || resource === "ephemeral-storage") {
-    return humanizeBytes(value)
+function formatValue(value: number, format: ResourceFormat): string {
+  switch (format) {
+    case "cpu":
+      return humanizeCpu(value)
+    case "bytes":
+      return humanizeBytes(value)
+    case "count":
+    default:
+      return value % 1 === 0 ? `${value}` : value.toFixed(2)
   }
-  return value % 1 === 0 ? `${value}` : value.toFixed(2)
-}
-
-/** Sum a single resource across all of a pod's containers (requests, then limits). */
-function podResourceRequest(pod: Pod, resource: string): number {
-  let total = 0
-  for (const container of pod.spec?.containers ?? []) {
-    const req = container.resources?.requests?.[resource]
-    const lim = container.resources?.limits?.[resource]
-    const value = req ?? lim
-    if (value !== undefined) total += parseQuantity(value)
-  }
-  return total
-}
-
-/** Derive the owning application (kind + name) of a pod from its labels. */
-function podOwner(pod: Pod): { kind: string; name: string } {
-  const labels = pod.metadata.labels ?? {}
-  const kind = labels[`${APPS_GROUP}/application.kind`]
-  const name =
-    labels[`${APPS_GROUP}/application.name`] ??
-    labels["app.kubernetes.io/instance"] ??
-    labels["app.kubernetes.io/name"]
-  if (kind && name) return { kind, name }
-  if (name) return { kind: kind ?? "—", name }
-  return { kind: kind ?? "—", name: pod.metadata.name }
 }
 
 export function ClusterUsageResourcePage() {
   const params = useParams()
   const resource = params["*"] ?? ""
+  const isStandard = STANDARD_RESOURCE_KEY_SET.has(resource)
+  const format = formatFor(resource)
 
-  const {
-    data: podsList,
-    isLoading,
-    error,
-  } = useK8sList<Pod>({ apiGroup: "", apiVersion: "v1", plural: "pods" })
+  const { perNode, nodes, isLoading, error, errorStatus, podsUnavailable } =
+    useClusterUsageData()
 
-  // Map application kind → plural so a consumer row can deep-link to the
-  // deployed application's Console page (/console/<plural>/<name>).
-  const { data: appDefs } = useApplicationDefinitions()
-  const { selectTenant } = useTenantContext()
-  const kindToPlural = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const ad of appDefs?.items ?? []) {
-      const kind = ad.spec?.application.kind
-      const plural = ad.spec?.application.plural
-      if (kind && plural) map.set(kind, plural)
-    }
-    return map
-  }, [appDefs])
+  const rows = [...perNode]
+    .map((n) => ({
+      name: n.name,
+      ready: n.ready,
+      totals: (isStandard
+        ? n.standard[resource as StandardResourceKey]
+        : n.extended[resource]) as ResourceTotals | undefined,
+    }))
+    .filter((r) => r.totals && r.totals.allocatable > 0)
+    .sort((a, b) => a.name.localeCompare(b.name))
 
-  const { rows, totalRequested, totalPods } = useMemo(() => {
-    const byKey = new Map<string, UsageRow>()
-    let totalRequested = 0
-    let totalPods = 0
-    for (const pod of podsList?.items ?? []) {
-      const requested = podResourceRequest(pod, resource)
-      if (requested <= 0) continue
-      const namespace = pod.metadata.namespace ?? "—"
-      const { kind, name } = podOwner(pod)
-      const key = `${namespace}/${kind}/${name}`
-      const existing = byKey.get(key)
-      if (existing) {
-        existing.pods += 1
-        existing.requested += requested
-      } else {
-        byKey.set(key, { namespace, kind, name, pods: 1, requested })
-      }
-      totalRequested += requested
-      totalPods += 1
-    }
-    const rows = [...byKey.values()].sort((a, b) => b.requested - a.requested)
-    return { rows, totalRequested, totalPods }
-  }, [podsList, resource])
+  const totalsSum = rows.reduce(
+    (acc, r) => {
+      acc.capacity += r.totals?.capacity ?? 0
+      acc.allocatable += r.totals?.allocatable ?? 0
+      acc.requested += r.totals?.requested ?? 0
+      acc.usedDefined = acc.usedDefined || r.totals?.used !== undefined
+      acc.used += r.totals?.used ?? 0
+      return acc
+    },
+    { capacity: 0, allocatable: 0, requested: 0, used: 0, usedDefined: false },
+  )
+
+  const cell = (value: number | undefined) =>
+    value === undefined ? "—" : formatValue(value, format)
 
   return (
     <div className="space-y-6 p-6">
       <div>
         <Link
-          to="/admin/cluster-usage"
+          to="/admin/resources-usage"
           className="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
         >
-          <ChevronLeft className="size-3.5" /> Cluster Usage
+          <ChevronLeft className="size-3.5" /> Resources
         </Link>
         <h1 className="font-mono text-xl font-semibold break-all text-slate-900">
           {resource}
         </h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          Consumers of this resource across all tenants, grouped by namespace
-          and owning application (derived from pod labels).
+          Per-node capacity, allocation and usage of this resource across the
+          cluster.
         </p>
       </div>
 
@@ -139,15 +98,28 @@ export function ClusterUsageResourcePage() {
         </div>
       ) : error ? (
         <Section>
-          <div className="px-2 py-4 text-sm text-red-700">
-            Failed to load pods: {error.message}
-          </div>
+          {errorStatus === 403 ? (
+            <div className="px-2 py-4 text-sm text-slate-700">
+              You do not have permission to view cluster nodes.{" "}
+              <Link to="/console" className="text-blue-700 underline hover:text-blue-800">
+                Back to console
+              </Link>
+              .
+            </div>
+          ) : (
+            <div className="px-2 py-4 text-sm text-red-700">
+              Failed to load cluster nodes: {error.message}
+            </div>
+          )}
+        </Section>
+      ) : nodes.length === 0 ? (
+        <Section>
+          <p className="py-6 text-center text-sm text-slate-500">No nodes found.</p>
         </Section>
       ) : rows.length === 0 ? (
         <Section>
           <p className="py-6 text-center text-sm text-slate-500">
-            No workloads are requesting{" "}
-            <span className="font-mono">{resource}</span>.
+            No node exposes <span className="font-mono">{resource}</span>.
           </p>
         </Section>
       ) : (
@@ -155,57 +127,51 @@ export function ClusterUsageResourcePage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
-                <th className="px-3 py-2 font-medium text-slate-600">Tenant (namespace)</th>
-                <th className="px-3 py-2 font-medium text-slate-600">Kind</th>
-                <th className="px-3 py-2 font-medium text-slate-600">Name</th>
-                <th className="px-3 py-2 text-right font-medium text-slate-600">Pods</th>
+                <th className="px-3 py-2 font-medium text-slate-600">Node</th>
+                <th className="px-3 py-2 text-right font-medium text-slate-600">Capacity</th>
+                <th className="px-3 py-2 text-right font-medium text-slate-600">Allocatable</th>
                 <th className="px-3 py-2 text-right font-medium text-slate-600">Requested</th>
+                <th className="px-3 py-2 text-right font-medium text-slate-600">Used</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((r) => {
-                // Deep-link the consumer to its deployed application in the
-                // Console, but only when it is a real app instance: the kind
-                // must resolve to a plural and it must live in a tenant
-                // namespace (so we can switch the Console's tenant context).
-                const plural = kindToPlural.get(r.kind)
-                const tenant = r.namespace.startsWith(TENANT_NAMESPACE_PREFIX)
-                  ? r.namespace.slice(TENANT_NAMESPACE_PREFIX.length)
-                  : null
-                const appHref = plural && tenant ? `/console/${plural}/${r.name}` : null
-                return (
-                  <tr key={`${r.namespace}/${r.kind}/${r.name}`} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-700">{r.namespace}</td>
-                    <td className="px-3 py-2 text-slate-600">{r.kind}</td>
-                    <td className="px-3 py-2">
-                      {appHref ? (
-                        <Link
-                          to={appHref}
-                          onClick={() => tenant && selectTenant(tenant)}
-                          className="text-blue-700 hover:text-blue-800 hover:underline"
-                        >
-                          {r.name}
-                        </Link>
-                      ) : (
-                        <span className="text-slate-700">{r.name}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.pods}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                      {formatResource(resource, r.requested)}
-                    </td>
-                  </tr>
-                )
-              })}
+              {rows.map((r) => (
+                <tr key={r.name} data-node-row={r.name} className="hover:bg-slate-50">
+                  <td className="px-3 py-2 font-medium text-slate-900">{r.name}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                    {cell(r.totals?.capacity)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                    {cell(r.totals?.allocatable)}
+                  </td>
+                  <td
+                    className="px-3 py-2 text-right tabular-nums text-slate-700"
+                    title={podsUnavailable ? "Requires cluster-wide pod read access" : undefined}
+                  >
+                    {podsUnavailable ? "—" : cell(r.totals?.requested)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                    {r.totals?.used !== undefined ? cell(r.totals.used) : "—"}
+                  </td>
+                </tr>
+              ))}
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50 font-medium">
-                <td className="px-3 py-2 text-slate-700" colSpan={3}>
-                  Total · {rows.length} consumer{rows.length === 1 ? "" : "s"}
+                <td className="px-3 py-2 text-slate-700">
+                  Total · {rows.length} node{rows.length === 1 ? "" : "s"}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-700">{totalPods}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                  {formatResource(resource, totalRequested)}
+                  {formatValue(totalsSum.capacity, format)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                  {formatValue(totalsSum.allocatable, format)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                  {podsUnavailable ? "—" : formatValue(totalsSum.requested, format)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                  {totalsSum.usedDefined ? formatValue(totalsSum.used, format) : "—"}
                 </td>
               </tr>
             </tfoot>

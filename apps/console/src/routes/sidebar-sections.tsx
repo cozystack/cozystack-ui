@@ -172,8 +172,8 @@ export function useAdminSidebarSections(): SidebarSection[] {
       sections.push({
         title: "Resources",
         items: [
-          { label: "Cluster Usage", to: "/admin/cluster-usage", icon: Gauge },
-          { label: "Nodes", to: "/admin/nodes", icon: Server },
+          { label: "Resources", to: "/admin/resources-usage", icon: Gauge },
+          { label: "Nodes", to: "/admin/resources-nodes", icon: Server },
         ],
       })
     }

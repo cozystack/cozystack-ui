@@ -91,7 +91,7 @@ describe("ClusterUsagePage", () => {
       groups: groupsWithMetrics,
     })
     const { container } = renderWithK8sProvider(<ClusterUsagePage />, { client })
-    expect(await screen.findByText("Cluster Usage")).toBeInTheDocument()
+    expect(await screen.findByText("Resources")).toBeInTheDocument()
     expect(await screen.findAllByText(/allocatable/i)).not.toHaveLength(0)
     // The per-node table moved to its own Nodes page; this page now shows
     // only the cluster-wide resources table.

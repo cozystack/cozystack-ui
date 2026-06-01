@@ -128,7 +128,7 @@ export function ClusterUsageAggregates({
                   <td className="px-3 py-2">
                     {row.linkKey ? (
                       <Link
-                        to={`/admin/cluster-usage/r/${row.linkKey}`}
+                        to={`/admin/resources-usage/r/${row.linkKey}`}
                         className="font-medium break-all text-blue-700 hover:text-blue-800 hover:underline"
                       >
                         {row.label}
