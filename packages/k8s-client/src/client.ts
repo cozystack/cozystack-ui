@@ -175,6 +175,29 @@ export class K8sClient {
     return this.request(path, { method: "DELETE" })
   }
 
+  /**
+   * Call a resource subresource (e.g. KubeVirt's
+   * subresources.kubevirt.io virtualmachines/{name}/start|stop|restart).
+   * Defaults to PUT, which is what the KubeVirt action subresources expect;
+   * pass an empty object as body when the subresource takes no options.
+   */
+  subresource<T>(
+    apiGroup: string,
+    apiVersion: string,
+    plural: string,
+    name: string,
+    subresource: string,
+    namespace?: string,
+    body?: unknown,
+    method: "PUT" | "POST" = "PUT",
+  ): Promise<T> {
+    const path = `${this.buildPath(apiGroup, apiVersion, plural, namespace, name)}/${subresource}`
+    return this.request<T>(path, {
+      method,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
+  }
+
   dryRunCreate<T>(
     apiGroup: string,
     apiVersion: string,

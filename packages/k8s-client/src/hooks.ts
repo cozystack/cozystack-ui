@@ -178,6 +178,43 @@ export function useK8sDelete(ref: ResourceRef) {
   })
 }
 
+/**
+ * Mutation hook for calling a resource subresource action (e.g. KubeVirt
+ * virtualmachines/{name}/start|stop|restart). On success it invalidates the
+ * GET and LIST caches for the referenced resource so status (e.g.
+ * printableStatus) refetches.
+ */
+export function useK8sSubresource(ref: ResourceRef & { name: string }) {
+  const client = useK8sClient()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      subresource,
+      body,
+      method,
+    }: {
+      subresource: string
+      body?: unknown
+      method?: "PUT" | "POST"
+    }) =>
+      client.subresource(
+        ref.apiGroup,
+        ref.apiVersion,
+        ref.plural,
+        ref.name,
+        subresource,
+        ref.namespace,
+        body ?? {},
+        method,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: k8sGetKey(ref) })
+      queryClient.invalidateQueries({ queryKey: k8sListKey(ref) })
+    },
+  })
+}
+
 function k8sListKey(ref: ResourceRef, labelSelector?: string, fieldSelector?: string) {
   return [
     "k8s",
