@@ -23,7 +23,7 @@ export function BackupClassCreatePage() {
     plural: "backupclasses",
   })
 
-  const listPath = "/console/backups/backupclasses"
+  const listPath = "/admin/backups/backupclasses"
 
   const handleSubmit = async () => {
     if (!name.trim()) {

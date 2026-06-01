@@ -31,7 +31,7 @@ export function BackupClassDetailPage() {
     if (!confirm(`Delete Backup Class "${name}"? This cannot be undone.`)) return
     try {
       await deleteMutation.mutateAsync(name)
-      navigate("/console/backups/backupclasses")
+      navigate("/admin/backups/backupclasses")
     } catch (err) {
       alert(`Failed to delete Backup Class: ${(err as Error).message}`)
     }
@@ -62,7 +62,7 @@ export function BackupClassDetailPage() {
   return (
     <div className="p-6">
       <Link
-        to="/console/backups/backupclasses"
+        to="/admin/backups/backupclasses"
         className="mb-4 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
       >
         <ArrowLeft className="size-3.5" /> Backups
@@ -81,7 +81,7 @@ export function BackupClassDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link to={`/console/backups/backupclasses/${backupClass.metadata.name}/edit`}>
+          <Link to={`/admin/backups/backupclasses/${backupClass.metadata.name}/edit`}>
             <Button variant="primary" size="sm">
               <Edit className="size-3.5" /> Edit
             </Button>

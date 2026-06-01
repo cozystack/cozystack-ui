@@ -53,7 +53,7 @@ export function BackupClassEditPage() {
     }
   }, [resource])
 
-  const detailPath = `/console/backups/backupclasses/${name}`
+  const detailPath = `/admin/backups/backupclasses/${name}`
 
   const handleSubmit = async () => {
     if (!resource || !schema) return
