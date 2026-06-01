@@ -165,8 +165,9 @@ export function ClusterUsageTable({
   const labelHeader =
     "sticky left-0 z-10 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-500"
 
-  // `linkKey` marks a row as a requestable resource: its label deep-links to
-  // the per-resource consumer drill-down. Status / Roles / Age have none.
+  // Resource rows only — node metadata (Status / Roles / Age) is rendered in
+  // each node's column header instead. Every row is a requestable resource,
+  // so its label deep-links to the per-resource consumer drill-down.
   const attributeRows: {
     key: string
     label: string
@@ -174,8 +175,6 @@ export function ClusterUsageTable({
     linkKey?: string
     render: (r: NodeRow) => ReactNode
   }[] = [
-    { key: "status", label: "Status", render: (r) => statusContent(r) },
-    { key: "roles", label: "Roles", render: (r) => rolesContent(r) },
     { key: "cpu", label: "CPU", linkKey: "cpu", render: (r) => cpuCell(r.standard.cpu, r.ready, podsUnavailable) },
     { key: "memory", label: "Memory", linkKey: "memory", render: (r) => memoryCell(r.standard.memory, r.ready, podsUnavailable) },
     ...extendedKeys.map((k) => ({
@@ -185,13 +184,6 @@ export function ClusterUsageTable({
       linkKey: k,
       render: (r: NodeRow) => extendedCell(r.extended[k], r.ready, podsUnavailable),
     })),
-    {
-      key: "age",
-      label: "Age",
-      render: (r: NodeRow) => (
-        <span className="text-xs tabular-nums text-slate-500">{r.age}</span>
-      ),
-    },
   ]
 
   return (
@@ -217,9 +209,15 @@ export function ClusterUsageTable({
               {visibleNodes.map((n) => (
                 <th
                   key={n.name}
-                  className="px-4 py-3 text-sm font-medium text-slate-900"
+                  data-node-col={n.name}
+                  className="px-4 py-3 text-left align-top font-normal"
                 >
-                  {n.name}
+                  <div className="space-y-1.5">
+                    <div className="text-sm font-semibold text-slate-900">{n.name}</div>
+                    {statusContent(n)}
+                    {rolesContent(n)}
+                    <div className="text-[11px] tabular-nums text-slate-400">Age {n.age}</div>
+                  </div>
                 </th>
               ))}
             </tr>

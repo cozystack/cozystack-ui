@@ -5,8 +5,8 @@ import { MemoryRouter } from "react-router"
 import { ClusterUsageTable } from "./ClusterUsageTable.tsx"
 import type { NodeRow } from "../../lib/cluster-usage/types.ts"
 
-// The table now renders <Link>s for resource row labels, so every render
-// needs a router context.
+// The table renders <Link>s for resource row labels, so every render needs a
+// router context.
 function render(ui: Parameters<typeof rtlRender>[0]) {
   return rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
 }
@@ -36,18 +36,25 @@ function attrRow(container: HTMLElement, key: string): HTMLElement {
   return container.querySelector(`[data-attribute-row="${key}"]`) as HTMLElement
 }
 
+function nodeCols(container: HTMLElement): (string | null)[] {
+  return Array.from(container.querySelectorAll("[data-node-col]")).map((el) =>
+    el.getAttribute("data-node-col"),
+  )
+}
+
+function thead(container: HTMLElement): HTMLElement {
+  return container.querySelector("thead") as HTMLElement
+}
+
 describe("ClusterUsageTable (transposed: nodes are columns)", () => {
   it("renders one column per node, sorted by name ascending", () => {
     const { container } = render(
       <ClusterUsageTable rows={[row("worker-b"), row("worker-a")]} extendedKeys={[]} />,
     )
-    const headers = within(container.querySelector("thead")!)
-      .getAllByRole("columnheader")
-      .map((h) => h.textContent)
-    expect(headers).toEqual(["Node", "worker-a", "worker-b"])
+    expect(nodeCols(container)).toEqual(["worker-a", "worker-b"])
   })
 
-  it("lays out attributes top-to-bottom: Status, Roles, CPU, Memory, extended…, Age", () => {
+  it("lays out resource rows top-to-bottom: CPU, Memory, then extended in order", () => {
     const { container } = render(
       <ClusterUsageTable
         rows={[row("n", { extended: { "nvidia.com/gpu": { capacity: 2, allocatable: 2, requested: 1 } } })]}
@@ -57,15 +64,7 @@ describe("ClusterUsageTable (transposed: nodes are columns)", () => {
     const order = Array.from(container.querySelectorAll("[data-attribute-row]")).map((el) =>
       el.getAttribute("data-attribute-row"),
     )
-    expect(order).toEqual([
-      "status",
-      "roles",
-      "cpu",
-      "memory",
-      "nvidia.com/gpu",
-      "amd.com/gpu",
-      "age",
-    ])
+    expect(order).toEqual(["cpu", "memory", "nvidia.com/gpu", "amd.com/gpu"])
   })
 
   it("links resource row labels (CPU, Memory, extended) to the per-resource drill-down", () => {
@@ -87,55 +86,47 @@ describe("ClusterUsageTable (transposed: nodes are columns)", () => {
       "href",
       "/admin/capacity/cluster/r/nvidia.com/gpu",
     )
-    // Non-resource attribute rows are not links.
-    expect(screen.queryByRole("link", { name: "Status" })).toBeNull()
-    expect(screen.queryByRole("link", { name: "Age" })).toBeNull()
+    // The node name in the header is not a link.
+    expect(screen.queryByRole("link", { name: "n" })).toBeNull()
   })
 
-  it("shows Ready / NotReady / SchedulingDisabled in the Status row", () => {
+  it("renders Status / Roles / Age inside each node's column header, not as rows", () => {
     const { container } = render(
       <ClusterUsageTable
         rows={[
-          row("ok", { ready: true }),
-          row("bad", { ready: false }),
+          row("ok", { ready: true, roles: ["control-plane"], age: "21h" }),
+          row("bad", { ready: false, roles: [] }),
           row("cordoned", { schedulable: false }),
         ]}
         extendedKeys={[]}
       />,
     )
-    const status = attrRow(container, "status")
-    expect(within(status).getByText("Ready")).toBeInTheDocument()
-    expect(within(status).getByText("NotReady")).toBeInTheDocument()
-    expect(within(status).getByText(/scheduling.?disabled/i)).toBeInTheDocument()
+    const head = thead(container)
+    expect(within(head).getByText("Ready")).toBeInTheDocument()
+    expect(within(head).getByText("NotReady")).toBeInTheDocument()
+    expect(within(head).getByText(/scheduling.?disabled/i)).toBeInTheDocument()
+    expect(within(head).getByText("control-plane")).toBeInTheDocument()
+    expect(within(head).getByText(/21h/)).toBeInTheDocument()
+    // No Status/Roles/Age body rows remain.
+    expect(attrRow(container, "status")).toBeNull()
+    expect(attrRow(container, "age")).toBeNull()
   })
 
-  it("flags pressure conditions with a chip", () => {
-    render(
+  it("flags pressure conditions with a chip in the header", () => {
+    const { container } = render(
       <ClusterUsageTable
         rows={[row("pressured", { pressureConditions: ["MemoryPressure"] })]}
         extendedKeys={[]}
       />,
     )
-    expect(screen.getByText("MemoryPressure")).toBeInTheDocument()
+    expect(within(thead(container)).getByText("MemoryPressure")).toBeInTheDocument()
   })
 
-  it("renders roles inline, em dash for nodes without roles", () => {
+  it("renders an em dash for a node header without roles", () => {
     const { container } = render(
-      <ClusterUsageTable
-        rows={[row("cp", { roles: ["control-plane"] }), row("worker", { roles: [] })]}
-        extendedKeys={[]}
-      />,
+      <ClusterUsageTable rows={[row("worker", { roles: [] })]} extendedKeys={[]} />,
     )
-    const roles = attrRow(container, "roles")
-    expect(within(roles).getByText("control-plane")).toBeInTheDocument()
-    expect(within(roles).getByText("—")).toBeInTheDocument()
-  })
-
-  it("renders the Age row verbatim from row.age", () => {
-    const { container } = render(
-      <ClusterUsageTable rows={[row("with-age", { age: "21h" })]} extendedKeys={[]} />,
-    )
-    expect(within(attrRow(container, "age")).getByText("21h")).toBeInTheDocument()
+    expect(within(thead(container)).getByText("—")).toBeInTheDocument()
   })
 
   it("renders em dash in an extended-resource row for a node that does not expose it", () => {
@@ -153,9 +144,7 @@ describe("ClusterUsageTable (transposed: nodes are columns)", () => {
         extendedKeys={["nvidia.com/gpu"]}
       />,
     )
-    const gpuRow = attrRow(container, "nvidia.com/gpu")
-    // Only the Ready node surfaces its capacity-derived number.
-    expect(within(gpuRow).getAllByText("capacity 2")).toHaveLength(1)
+    expect(within(attrRow(container, "nvidia.com/gpu")).getAllByText("capacity 2")).toHaveLength(1)
   })
 
   it("renders em dashes in the CPU and Memory rows when the node is NotReady", () => {
@@ -175,10 +164,7 @@ describe("ClusterUsageTable (transposed: nodes are columns)", () => {
       />,
     )
     await user.type(screen.getByLabelText("Filter nodes"), "GPU")
-    const headers = within(container.querySelector("thead")!)
-      .getAllByRole("columnheader")
-      .map((h) => h.textContent)
-    expect(headers).toEqual(["Node", "worker-gpu-1"])
+    expect(nodeCols(container)).toEqual(["worker-gpu-1"])
   })
 
   it("filters node columns by role substring", async () => {
@@ -190,10 +176,7 @@ describe("ClusterUsageTable (transposed: nodes are columns)", () => {
       />,
     )
     await user.type(screen.getByLabelText("Filter nodes"), "control")
-    const headers = within(container.querySelector("thead")!)
-      .getAllByRole("columnheader")
-      .map((h) => h.textContent)
-    expect(headers).toEqual(["Node", "a"])
+    expect(nodeCols(container)).toEqual(["a"])
   })
 
   it("replaces the Requested line with an em-dash tooltip when podsUnavailable", () => {
