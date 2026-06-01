@@ -194,6 +194,16 @@ describe("derivePerNodeRows", () => {
     expect(rows[0].standard.memory.used).toBe(4 * 1024 ** 3)
   })
 
+  it("reports cpu used in cores from nanocore metrics, not raw nanocores", () => {
+    const rows = derivePerNodeRows(
+      [nodeWith("a", { capacity: { cpu: "288", memory: "256Gi" } })],
+      [],
+      [metric("a", "2785315627n", "14417112Ki")],
+    )
+    expect(rows[0].standard.cpu.used).toBeCloseTo(2.785, 3)
+    expect(rows[0].standard.memory.used).toBe(14417112 * 1024)
+  })
+
   it("leaves used undefined per node when metrics are undefined", () => {
     const rows = derivePerNodeRows(
       [nodeWith("a", { capacity: { cpu: "8", memory: "16Gi" } })],

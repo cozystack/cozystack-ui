@@ -135,6 +135,16 @@ describe("aggregateNodeResources", () => {
     expect(a.standard.memory.used).toBe(4 * 1024 ** 3)
   })
 
+  it("reports cpu used in cores from nanocore metrics, not raw nanocores", () => {
+    const a = aggregateNodeResources(
+      [node("a", { cpu: "288", memory: "256Gi" })],
+      [],
+      [metric("a", "2785315627n", "14417112Ki")],
+    )
+    expect(a.standard.cpu.used).toBeCloseTo(2.785, 3)
+    expect(a.standard.memory.used).toBe(14417112 * 1024)
+  })
+
   it("leaves used undefined when metrics is undefined", () => {
     const a = aggregateNodeResources(
       [node("a", { cpu: "8", memory: "16Gi" })],

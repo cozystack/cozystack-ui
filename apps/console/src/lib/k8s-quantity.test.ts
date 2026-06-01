@@ -50,6 +50,18 @@ describe("parseQuantity", () => {
     expect(parseQuantity("1G")).toBe(1_000_000_000)
   })
 
+  it("parses nano suffix — metrics-server reports CPU usage in nanocores", () => {
+    expect(parseQuantity("2785315627n")).toBeCloseTo(2.785315627, 6)
+  })
+
+  it("parses micro suffix as a millionth", () => {
+    expect(parseQuantity("500u")).toBe(500 / 1e6)
+  })
+
+  it("parses zero nanocores", () => {
+    expect(parseQuantity("0n")).toBe(0)
+  })
+
   it("parses a bare integer", () => {
     expect(parseQuantity("42")).toBe(42)
   })
