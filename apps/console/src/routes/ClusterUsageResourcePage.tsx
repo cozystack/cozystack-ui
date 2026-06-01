@@ -5,6 +5,9 @@ import { useK8sList } from "@cozystack/k8s-client"
 import { APPS_GROUP } from "@cozystack/types"
 import { ChevronLeft } from "lucide-react"
 import { parseQuantity, humanizeBytes, humanizeCpu } from "../lib/k8s-quantity.ts"
+import { useApplicationDefinitions } from "../lib/app-definitions.ts"
+import { useTenantContext } from "../lib/tenant-context.tsx"
+import { TENANT_NAMESPACE_PREFIX } from "../lib/constants.ts"
 import type { Pod } from "../lib/cluster-usage/types.ts"
 
 /**
@@ -73,6 +76,20 @@ export function ClusterUsageResourcePage() {
     isLoading,
     error,
   } = useK8sList<Pod>({ apiGroup: "", apiVersion: "v1", plural: "pods" })
+
+  // Map application kind → plural so a consumer row can deep-link to the
+  // deployed application's Console page (/console/<plural>/<name>).
+  const { data: appDefs } = useApplicationDefinitions()
+  const { selectTenant } = useTenantContext()
+  const kindToPlural = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const ad of appDefs?.items ?? []) {
+      const kind = ad.spec?.application.kind
+      const plural = ad.spec?.application.plural
+      if (kind && plural) map.set(kind, plural)
+    }
+    return map
+  }, [appDefs])
 
   const { rows, totalRequested, totalPods } = useMemo(() => {
     const byKey = new Map<string, UsageRow>()
@@ -146,17 +163,40 @@ export function ClusterUsageResourcePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((r) => (
-                <tr key={`${r.namespace}/${r.kind}/${r.name}`} className="hover:bg-slate-50">
-                  <td className="px-3 py-2 text-slate-700">{r.namespace}</td>
-                  <td className="px-3 py-2 text-slate-600">{r.kind}</td>
-                  <td className="px-3 py-2 text-slate-700">{r.name}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.pods}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                    {formatResource(resource, r.requested)}
-                  </td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                // Deep-link the consumer to its deployed application in the
+                // Console, but only when it is a real app instance: the kind
+                // must resolve to a plural and it must live in a tenant
+                // namespace (so we can switch the Console's tenant context).
+                const plural = kindToPlural.get(r.kind)
+                const tenant = r.namespace.startsWith(TENANT_NAMESPACE_PREFIX)
+                  ? r.namespace.slice(TENANT_NAMESPACE_PREFIX.length)
+                  : null
+                const appHref = plural && tenant ? `/console/${plural}/${r.name}` : null
+                return (
+                  <tr key={`${r.namespace}/${r.kind}/${r.name}`} className="hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-700">{r.namespace}</td>
+                    <td className="px-3 py-2 text-slate-600">{r.kind}</td>
+                    <td className="px-3 py-2">
+                      {appHref ? (
+                        <Link
+                          to={appHref}
+                          onClick={() => tenant && selectTenant(tenant)}
+                          className="text-blue-700 hover:text-blue-800 hover:underline"
+                        >
+                          {r.name}
+                        </Link>
+                      ) : (
+                        <span className="text-slate-700">{r.name}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.pods}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                      {formatResource(resource, r.requested)}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50 font-medium">

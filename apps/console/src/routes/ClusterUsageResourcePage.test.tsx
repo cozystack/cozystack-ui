@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeAll } from "vitest"
 import { screen, within } from "@testing-library/react"
 import { Route, Routes } from "react-router"
 import { K8sClient, type K8sList } from "@cozystack/k8s-client"
 import { ClusterUsageResourcePage } from "./ClusterUsageResourcePage.tsx"
+import { TenantProvider } from "../lib/tenant-context.tsx"
 import { renderWithK8sProvider } from "../test-utils/render.tsx"
 
 function pod(
@@ -25,27 +26,59 @@ function pod(
   }
 }
 
+function appDef(kind: string, plural: string) {
+  return {
+    apiVersion: "cozystack.io/v1alpha1",
+    kind: "ApplicationDefinition",
+    metadata: { name: plural },
+    spec: { application: { kind, plural, singular: kind.toLowerCase() } },
+  }
+}
+
 const GPU = "nvidia.com/gpu"
 
-function makeClient(pods: unknown[]): K8sClient {
+function makeClient(pods: unknown[], appDefs: unknown[] = []): K8sClient {
   const client = new K8sClient()
-  vi.spyOn(client, "list").mockResolvedValue({
-    apiVersion: "v1",
-    kind: "PodList",
-    metadata: {},
-    items: pods,
-  } as K8sList<unknown>)
+  vi.spyOn(client, "list").mockImplementation(async (_g, _v, plural) => {
+    const items =
+      plural === "applicationdefinitions"
+        ? appDefs
+        : plural === "tenantnamespaces"
+          ? []
+          : pods
+    return {
+      apiVersion: "v1",
+      kind: `${plural}List`,
+      metadata: {},
+      items,
+    } as K8sList<unknown>
+  })
   return client
 }
 
 function renderResource(client: K8sClient, resource: string) {
   return renderWithK8sProvider(
-    <Routes>
-      <Route path="/r/*" element={<ClusterUsageResourcePage />} />
-    </Routes>,
+    <TenantProvider>
+      <Routes>
+        <Route path="/r/*" element={<ClusterUsageResourcePage />} />
+      </Routes>
+    </TenantProvider>,
     { client, initialRoute: `/r/${resource}` },
   )
 }
+
+// TenantProvider reads window.localStorage on mount.
+beforeAll(() => {
+  if (typeof globalThis.localStorage?.getItem !== "function") {
+    const store = new Map<string, string>()
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+      clear: () => store.clear(),
+    })
+  }
+})
 
 describe("ClusterUsageResourcePage", () => {
   it("groups consumers of a resource by tenant namespace and owning app, summing requests", async () => {
@@ -79,13 +112,47 @@ describe("ClusterUsageResourcePage", () => {
     const tr = row.closest("tr") as HTMLElement
     expect(within(tr).getByText("tenant-foo")).toBeInTheDocument()
     expect(within(tr).getByText("VMInstance")).toBeInTheDocument()
-    // Two pods, 2 + 1 = 3 GPUs requested.
     const cells = tr.querySelectorAll("td")
     expect(cells[cells.length - 2].textContent).toBe("2")
     expect(cells[cells.length - 1].textContent).toBe("3")
-
-    // The non-consuming tenant must not appear.
     expect(screen.queryByText("tenant-bar")).toBeNull()
+  })
+
+  it("links a consumer to its deployed application page in the Console", async () => {
+    const client = makeClient(
+      [
+        pod(
+          "tenant-root",
+          "demo-vm-launcher",
+          {
+            "apps.cozystack.io/application.kind": "VMInstance",
+            "apps.cozystack.io/application.name": "demo-vm",
+          },
+          [{ [GPU]: "1" }],
+        ),
+      ],
+      [appDef("VMInstance", "vminstances")],
+    )
+    renderResource(client, GPU)
+
+    const link = await screen.findByRole("link", { name: "demo-vm" })
+    expect(link).toHaveAttribute("href", "/console/vminstances/demo-vm")
+  })
+
+  it("does not link a consumer whose kind is not a known application", async () => {
+    const client = makeClient(
+      [
+        pod("tenant-root", "rogue", { "app.kubernetes.io/instance": "rogue" }, [
+          { [GPU]: "1" },
+        ]),
+      ],
+      [appDef("VMInstance", "vminstances")],
+    )
+    renderResource(client, GPU)
+    // Owner falls back to the Helm instance label; with no matching app
+    // definition it must render as plain text, not a link.
+    await screen.findByText("rogue")
+    expect(screen.queryByRole("link", { name: "rogue" })).toBeNull()
   })
 
   it("shows an empty state when nothing requests the resource", async () => {
