@@ -44,9 +44,9 @@ describe("AdminPage routing & access gate", () => {
   it("renders the Cluster Usage page at /cluster-usage for an operator", async () => {
     renderWithK8sProvider(<AdminPage />, {
       client: makeClient({ nodes: true }),
-      initialRoute: "/resources-usage",
+      initialRoute: "/capacity/cluster",
     })
-    expect(await screen.findByText("Resources")).toBeInTheDocument()
+    expect(await screen.findByText("Cluster")).toBeInTheDocument()
   })
 
   it("redirects the index route to Cluster Usage for an operator", async () => {
@@ -54,13 +54,13 @@ describe("AdminPage routing & access gate", () => {
       client: makeClient({ nodes: true }),
       initialRoute: "/",
     })
-    expect(await screen.findByText("Resources")).toBeInTheDocument()
+    expect(await screen.findByText("Cluster")).toBeInTheDocument()
   })
 
   it("blocks direct access with a 403 notice when the user has neither admin area", async () => {
     renderWithK8sProvider(<AdminPage />, {
       client: makeClient({ nodes: false, backupclasses: false }),
-      initialRoute: "/resources-usage",
+      initialRoute: "/capacity/cluster",
     })
     expect(
       await screen.findByText(/you do not have permission to access the admin portal/i),

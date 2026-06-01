@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react"
+import { Link } from "react-router"
 import { humanizeBytes, humanizeCpu } from "../../lib/k8s-quantity.ts"
 import type { NodeRow, ResourceTotals } from "../../lib/cluster-usage/types.ts"
 
@@ -164,15 +165,24 @@ export function ClusterUsageTable({
   const labelHeader =
     "sticky left-0 z-10 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-500"
 
-  const attributeRows: { key: string; label: string; mono?: boolean; render: (r: NodeRow) => ReactNode }[] = [
+  // `linkKey` marks a row as a requestable resource: its label deep-links to
+  // the per-resource consumer drill-down. Status / Roles / Age have none.
+  const attributeRows: {
+    key: string
+    label: string
+    mono?: boolean
+    linkKey?: string
+    render: (r: NodeRow) => ReactNode
+  }[] = [
     { key: "status", label: "Status", render: (r) => statusContent(r) },
     { key: "roles", label: "Roles", render: (r) => rolesContent(r) },
-    { key: "cpu", label: "CPU", render: (r) => cpuCell(r.standard.cpu, r.ready, podsUnavailable) },
-    { key: "memory", label: "Memory", render: (r) => memoryCell(r.standard.memory, r.ready, podsUnavailable) },
+    { key: "cpu", label: "CPU", linkKey: "cpu", render: (r) => cpuCell(r.standard.cpu, r.ready, podsUnavailable) },
+    { key: "memory", label: "Memory", linkKey: "memory", render: (r) => memoryCell(r.standard.memory, r.ready, podsUnavailable) },
     ...extendedKeys.map((k) => ({
       key: k,
       label: k,
       mono: true,
+      linkKey: k,
       render: (r: NodeRow) => extendedCell(r.extended[k], r.ready, podsUnavailable),
     })),
     {
@@ -221,7 +231,16 @@ export function ClusterUsageTable({
                   scope="row"
                   className={`${labelCell} text-left align-top ${attr.mono ? "font-mono" : ""}`}
                 >
-                  {attr.label}
+                  {attr.linkKey ? (
+                    <Link
+                      to={`/admin/capacity/cluster/r/${attr.linkKey}`}
+                      className="text-blue-700 hover:text-blue-800 hover:underline"
+                    >
+                      {attr.label}
+                    </Link>
+                  ) : (
+                    attr.label
+                  )}
                 </th>
                 {visibleNodes.map((n) => (
                   <td key={n.name} className="px-4 py-3 align-top">

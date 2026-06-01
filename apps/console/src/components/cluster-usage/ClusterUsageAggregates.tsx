@@ -6,6 +6,7 @@ import type {
   StandardResourceKey,
 } from "../../lib/cluster-usage/types.ts"
 import type { NodeSummary } from "../../hooks/useClusterUsageData.tsx"
+import { ClusterUsageGauges } from "./ClusterUsageGauges.tsx"
 
 interface ClusterUsageAggregatesProps {
   aggregates: AggregateResources
@@ -103,6 +104,8 @@ export function ClusterUsageAggregates({
         </span>
       </div>
 
+      <ClusterUsageGauges aggregates={aggregates} podsUnavailable={podsUnavailable} />
+
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
@@ -128,7 +131,7 @@ export function ClusterUsageAggregates({
                   <td className="px-3 py-2">
                     {row.linkKey ? (
                       <Link
-                        to={`/admin/resources-usage/r/${row.linkKey}`}
+                        to={`/admin/capacity/cluster/r/${row.linkKey}`}
                         className="font-medium break-all text-blue-700 hover:text-blue-800 hover:underline"
                       >
                         {row.label}

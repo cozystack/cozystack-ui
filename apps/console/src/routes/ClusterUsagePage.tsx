@@ -30,7 +30,7 @@ export function ClusterUsagePage() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Resources</h1>
+        <h1 className="text-xl font-semibold text-slate-900">Cluster</h1>
         <p className="mt-0.5 text-sm text-slate-500">
           Cluster-scoped capacity, allocation and usage across all nodes,
           including any discovered extended resources.

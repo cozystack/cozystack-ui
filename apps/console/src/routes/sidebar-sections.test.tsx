@@ -81,7 +81,7 @@ describe("useConsoleSidebarSections — admin areas moved out", () => {
     // Per-tenant backups stay in Console.
     expect(findItem(result.current, "Plans")?.to).toBe("/console/backups/plans")
     // Cluster-wide admin areas are gone from Console.
-    expect(findItem(result.current, "Resources")).toBeUndefined()
+    expect(findItem(result.current, "Cluster")).toBeUndefined()
     expect(hasItemTo(result.current, "/console/backups/backupclasses")).toBe(false)
   })
 })
@@ -93,9 +93,9 @@ describe("useAdminSidebarSections", () => {
       wrapper: makeWrapper(client),
     })
     await waitFor(() =>
-      expect(findItem(result.current, "Resources")).toBeDefined(),
+      expect(findItem(result.current, "Cluster")).toBeDefined(),
     )
-    expect(findItem(result.current, "Resources")?.to).toBe("/admin/resources-usage")
+    expect(findItem(result.current, "Cluster")?.to).toBe("/admin/capacity/cluster")
     expect(findItem(result.current, "Backup Classes")?.to).toBe(
       "/admin/backups/backupclasses",
     )
@@ -109,7 +109,7 @@ describe("useAdminSidebarSections", () => {
     await waitFor(() =>
       expect(findItem(result.current, "Backup Classes")).toBeDefined(),
     )
-    expect(findItem(result.current, "Resources")).toBeUndefined()
+    expect(findItem(result.current, "Cluster")).toBeUndefined()
   })
 
   it("shows only Cluster Usage when the user cannot manage backup classes", async () => {
@@ -118,7 +118,7 @@ describe("useAdminSidebarSections", () => {
       wrapper: makeWrapper(client),
     })
     await waitFor(() =>
-      expect(findItem(result.current, "Resources")).toBeDefined(),
+      expect(findItem(result.current, "Cluster")).toBeDefined(),
     )
     expect(findItem(result.current, "Backup Classes")).toBeUndefined()
   })

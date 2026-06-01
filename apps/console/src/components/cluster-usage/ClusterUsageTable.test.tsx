@@ -1,8 +1,15 @@
 import { describe, it, expect } from "vitest"
-import { render, screen, within } from "@testing-library/react"
+import { render as rtlRender, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import { ClusterUsageTable } from "./ClusterUsageTable.tsx"
 import type { NodeRow } from "../../lib/cluster-usage/types.ts"
+
+// The table now renders <Link>s for resource row labels, so every render
+// needs a router context.
+function render(ui: Parameters<typeof rtlRender>[0]) {
+  return rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
+}
 
 function row(name: string, overrides: Partial<NodeRow> = {}): NodeRow {
   return {
@@ -59,6 +66,30 @@ describe("ClusterUsageTable (transposed: nodes are columns)", () => {
       "amd.com/gpu",
       "age",
     ])
+  })
+
+  it("links resource row labels (CPU, Memory, extended) to the per-resource drill-down", () => {
+    render(
+      <ClusterUsageTable
+        rows={[row("n", { extended: { "nvidia.com/gpu": { capacity: 2, allocatable: 2, requested: 1 } } })]}
+        extendedKeys={["nvidia.com/gpu"]}
+      />,
+    )
+    expect(screen.getByRole("link", { name: "CPU" })).toHaveAttribute(
+      "href",
+      "/admin/capacity/cluster/r/cpu",
+    )
+    expect(screen.getByRole("link", { name: "Memory" })).toHaveAttribute(
+      "href",
+      "/admin/capacity/cluster/r/memory",
+    )
+    expect(screen.getByRole("link", { name: "nvidia.com/gpu" })).toHaveAttribute(
+      "href",
+      "/admin/capacity/cluster/r/nvidia.com/gpu",
+    )
+    // Non-resource attribute rows are not links.
+    expect(screen.queryByRole("link", { name: "Status" })).toBeNull()
+    expect(screen.queryByRole("link", { name: "Age" })).toBeNull()
   })
 
   it("shows Ready / NotReady / SchedulingDisabled in the Status row", () => {

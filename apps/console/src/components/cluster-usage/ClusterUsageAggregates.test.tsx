@@ -78,11 +78,11 @@ describe("ClusterUsageAggregates", () => {
     renderAgg({ aggregates: agg, nodeSummary: summary() })
     expect(screen.getByRole("link", { name: "CPU" })).toHaveAttribute(
       "href",
-      "/admin/resources-usage/r/cpu",
+      "/admin/capacity/cluster/r/cpu",
     )
     expect(screen.getByRole("link", { name: "nvidia.com/gpu" })).toHaveAttribute(
       "href",
-      "/admin/resources-usage/r/nvidia.com/gpu",
+      "/admin/capacity/cluster/r/nvidia.com/gpu",
     )
   })
 

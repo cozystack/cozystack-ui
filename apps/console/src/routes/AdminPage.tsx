@@ -53,14 +53,14 @@ export function AdminPage() {
         index
         element={
           <Navigate
-            to={canClusterUsage ? "resources-usage" : "backups/backupclasses"}
+            to={canClusterUsage ? "capacity/cluster" : "backups/backupclasses"}
             replace
           />
         }
       />
-      <Route path="resources-usage" element={<ClusterUsagePage />} />
-      <Route path="resources-usage/r/*" element={<ClusterUsageResourcePage />} />
-      <Route path="resources-nodes" element={<NodesPage />} />
+      <Route path="capacity/cluster" element={<ClusterUsagePage />} />
+      <Route path="capacity/cluster/r/*" element={<ClusterUsageResourcePage />} />
+      <Route path="capacity/nodes" element={<NodesPage />} />
       <Route element={<BackupClassAdminGuard />}>
         <Route path="backups/backupclasses" element={<BackupClassListPage />} />
         <Route path="backups/backupclasses/create" element={<BackupClassCreatePage />} />

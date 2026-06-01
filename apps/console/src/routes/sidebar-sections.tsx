@@ -170,10 +170,10 @@ export function useAdminSidebarSections(): SidebarSection[] {
     const sections: SidebarSection[] = []
     if (canClusterUsage) {
       sections.push({
-        title: "Resources",
+        title: "Capacity",
         items: [
-          { label: "Resources", to: "/admin/resources-usage", icon: Gauge },
-          { label: "Nodes", to: "/admin/resources-nodes", icon: Server },
+          { label: "Cluster", to: "/admin/capacity/cluster", icon: Gauge },
+          { label: "Nodes", to: "/admin/capacity/nodes", icon: Server },
         ],
       })
     }

@@ -99,6 +99,9 @@ export function ClusterUsageResourcePage() {
       const requested = podResourceRequest(pod, resource)
       if (requested <= 0) continue
       const namespace = pod.metadata.namespace ?? "—"
+      // Only tenant namespaces are relevant here — skip system/control-plane
+      // namespaces (cozy-*, kube-system, …) that also consume the resource.
+      if (!namespace.startsWith(TENANT_NAMESPACE_PREFIX)) continue
       const { kind, name } = podOwner(pod)
       const key = `${namespace}/${kind}/${name}`
       const existing = byKey.get(key)
@@ -119,10 +122,10 @@ export function ClusterUsageResourcePage() {
     <div className="space-y-6 p-6">
       <div>
         <Link
-          to="/admin/resources-usage"
+          to="/admin/capacity/cluster"
           className="mb-2 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
         >
-          <ChevronLeft className="size-3.5" /> Resources
+          <ChevronLeft className="size-3.5" /> Cluster
         </Link>
         <h1 className="font-mono text-xl font-semibold break-all text-slate-900">
           {resource}
