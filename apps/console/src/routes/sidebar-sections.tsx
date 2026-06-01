@@ -5,6 +5,7 @@ import {
   Database,
   Gauge,
   Globe,
+  HardDrive,
   Info,
   LayoutGrid,
   Layers,
@@ -174,6 +175,7 @@ export function useAdminSidebarSections(): SidebarSection[] {
         items: [
           { label: "Cluster", to: "/admin/capacity/cluster", icon: Gauge },
           { label: "Nodes", to: "/admin/capacity/nodes", icon: Server },
+          { label: "Storage", to: "/admin/capacity/storage", icon: HardDrive },
         ],
       })
     }

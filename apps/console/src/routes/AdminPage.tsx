@@ -4,6 +4,7 @@ import { useAdminAccess } from "./sidebar-sections.tsx"
 import { ClusterUsagePage } from "./ClusterUsagePage.tsx"
 import { ClusterUsageResourcePage } from "./ClusterUsageResourcePage.tsx"
 import { StorageClassUsagePage } from "./StorageClassUsagePage.tsx"
+import { StoragePage } from "./StoragePage.tsx"
 import { NodesPage } from "./NodesPage.tsx"
 import { BackupClassListPage } from "./BackupClassListPage.tsx"
 import { BackupClassCreatePage } from "./BackupClassCreatePage.tsx"
@@ -62,6 +63,7 @@ export function AdminPage() {
       <Route path="capacity/cluster" element={<ClusterUsagePage />} />
       <Route path="capacity/cluster/r/*" element={<ClusterUsageResourcePage />} />
       <Route path="capacity/cluster/sc/*" element={<StorageClassUsagePage />} />
+      <Route path="capacity/storage" element={<StoragePage />} />
       <Route path="capacity/nodes" element={<NodesPage />} />
       <Route element={<BackupClassAdminGuard />}>
         <Route path="backups/backupclasses" element={<BackupClassListPage />} />

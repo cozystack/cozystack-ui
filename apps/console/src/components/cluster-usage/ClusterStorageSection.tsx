@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { Link } from "react-router"
-import { Section } from "@cozystack/ui"
+import { Section, Spinner } from "@cozystack/ui"
 import { useK8sList } from "@cozystack/k8s-client"
 import { parseQuantity, humanizeBytes } from "../../lib/k8s-quantity.ts"
 import { TENANT_NAMESPACE_PREFIX } from "../../lib/constants.ts"
@@ -50,13 +50,27 @@ export function ClusterStorageSection() {
     return [...byClass.values()].sort((a, b) => a.storageClass.localeCompare(b.storageClass))
   }, [data])
 
-  if (isLoading || rows.length === 0) return null
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-slate-500">
+        <Spinner /> Loading…
+      </div>
+    )
+  }
+
+  if (rows.length === 0) {
+    return (
+      <Section>
+        <p className="py-6 text-center text-sm text-slate-500">
+          No persistent volume claims found.
+        </p>
+      </Section>
+    )
+  }
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-sm font-medium text-slate-700">Persistent Storage</h2>
-      <Section>
-        <table className="w-full text-sm">
+    <Section>
+      <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-left">
               <th className="px-3 py-2 font-medium text-slate-600">Storage Class</th>
@@ -92,6 +106,5 @@ export function ClusterStorageSection() {
           </tbody>
         </table>
       </Section>
-    </div>
   )
 }

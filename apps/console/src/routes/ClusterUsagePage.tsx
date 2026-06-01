@@ -2,7 +2,6 @@ import { Link } from "react-router"
 import { Section, Spinner } from "@cozystack/ui"
 import { useClusterUsageData } from "../hooks/useClusterUsageData.tsx"
 import { ClusterUsageAggregates } from "../components/cluster-usage/ClusterUsageAggregates.tsx"
-import { ClusterStorageSection } from "../components/cluster-usage/ClusterStorageSection.tsx"
 
 /**
  * Administration → Cluster Usage. Single cluster-scoped page that
@@ -65,14 +64,11 @@ export function ClusterUsagePage() {
           <p className="py-6 text-center text-sm text-slate-500">No nodes found.</p>
         </Section>
       ) : (
-        <>
-          <ClusterUsageAggregates
-            aggregates={aggregates}
-            nodeSummary={nodeSummary}
-            podsUnavailable={podsUnavailable}
-          />
-          <ClusterStorageSection />
-        </>
+        <ClusterUsageAggregates
+          aggregates={aggregates}
+          nodeSummary={nodeSummary}
+          podsUnavailable={podsUnavailable}
+        />
       )}
     </div>
   )

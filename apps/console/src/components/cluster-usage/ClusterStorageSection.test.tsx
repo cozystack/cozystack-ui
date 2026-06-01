@@ -49,12 +49,12 @@ describe("ClusterStorageSection", () => {
     expect(link).toHaveAttribute("href", "/admin/capacity/cluster/sc/replicated")
   })
 
-  it("renders nothing when no tenant PVCs exist", async () => {
+  it("shows an empty state when no tenant PVCs exist", async () => {
     const client = makeClient([pvc("cozy-system", "replicated", "100Gi")])
-    const { container } = renderWithK8sProvider(<ClusterStorageSection />, { client })
-    // Give the query a tick to settle, then assert the panel is absent.
-    await Promise.resolve()
-    expect(within(container).queryByText("Persistent Storage")).toBeNull()
+    renderWithK8sProvider(<ClusterStorageSection />, { client })
+    expect(
+      await screen.findByText(/no persistent volume claims found/i),
+    ).toBeInTheDocument()
   })
 })
 
