@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import { Link, useLocation } from "react-router"
-import { Search, Bell, User, Settings, LogOut } from "lucide-react"
+import { Search, User, Settings, LogOut } from "lucide-react"
 import { Logo } from "../Logo.tsx"
 import { cn } from "../../lib/utils.ts"
 
@@ -19,8 +19,11 @@ interface HeaderProps {
   username?: string
   userSettingsUrl?: string
   signOutUrl?: string
-  notificationBell?: ReactNode
   onSearchClick?: () => void
+  version?: string
+  scrolled?: boolean
+  logoSvg?: string
+  logoText?: string
 }
 
 const DEFAULT_TABS: HeaderTab[] = [
@@ -33,17 +36,28 @@ export function Header({
   username,
   userSettingsUrl,
   signOutUrl,
-  notificationBell,
   onSearchClick,
+  version,
+  scrolled,
+  logoSvg,
+  logoText,
 }: HeaderProps) {
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
+    <header
+      className={cn(
+        "flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 transition-shadow duration-200",
+        scrolled && "shadow-sm",
+      )}
+    >
       <div className="flex items-center gap-6">
-        <Link to="/" className="flex items-center">
-          <Logo className="h-5 w-auto" />
+        <Link to="/" className="flex items-center gap-2">
+          <Logo className="h-11 w-auto" svgContent={logoSvg} text={logoText} />
+          {version && (
+            <span className="text-xs font-medium text-slate-400">{version}</span>
+          )}
         </Link>
         <nav className="flex items-center gap-1">
           {tabs.map((t) => {
@@ -83,25 +97,7 @@ export function Header({
         >
           <Search className="h-[18px] w-[18px]" />
         </button>
-        {notificationBell ?? (
-          <button
-            type="button"
-            className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-          >
-            <Bell className="h-[18px] w-[18px]" />
-          </button>
-        )}
-
         <div className="mx-2 h-5 w-px bg-slate-200" />
-
-        <button
-          type="button"
-          className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
-        >
-          EN
-        </button>
-
-        <div className="mx-1 h-5 w-px bg-slate-200" />
 
         <div className="relative">
           <button

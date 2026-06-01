@@ -47,10 +47,27 @@ interface K8sPod {
   }
 }
 
-export function EventsTab({ ad: _ad, instance }: EventsTabProps) {
+interface K8sPVC {
+  apiVersion: string
+  kind: string
+  metadata: {
+    name: string
+  }
+}
+
+export function EventsTab({ ad, instance }: EventsTabProps) {
   const { tenantNamespace } = useTenantContext()
 
-  // Load Pods belonging to this application
+  const helmReleaseName = (ad.spec?.release?.prefix ?? "") + instance.metadata.name
+
+  const appLabelSelector = [
+    `apps.cozystack.io/application.name=${instance.metadata.name}`,
+    `apps.cozystack.io/application.kind=${instance.kind}`,
+  ].join(",")
+
+  const helmLabelSelector = `app.kubernetes.io/instance=${helmReleaseName}`
+
+  // Load Pods belonging to this application (by app label)
   const { data: podsList } = useK8sList<K8sPod>(
     {
       apiGroup: "",
@@ -60,7 +77,49 @@ export function EventsTab({ ad: _ad, instance }: EventsTabProps) {
     },
     {
       enabled: !!tenantNamespace,
-      labelSelector: `apps.cozystack.io/application.name=${instance.metadata.name}`,
+      labelSelector: appLabelSelector,
+    },
+  )
+
+  // Load Pods belonging to Helm-managed child resources
+  const { data: helmPodsList } = useK8sList<K8sPod>(
+    {
+      apiGroup: "",
+      apiVersion: "v1",
+      plural: "pods",
+      namespace: tenantNamespace ?? undefined,
+    },
+    {
+      enabled: !!tenantNamespace,
+      labelSelector: helmLabelSelector,
+    },
+  )
+
+  // Load PVCs belonging to this application (by app label)
+  const { data: pvcList } = useK8sList<K8sPVC>(
+    {
+      apiGroup: "",
+      apiVersion: "v1",
+      plural: "persistentvolumeclaims",
+      namespace: tenantNamespace ?? undefined,
+    },
+    {
+      enabled: !!tenantNamespace,
+      labelSelector: appLabelSelector,
+    },
+  )
+
+  // Load PVCs belonging to Helm-managed child resources
+  const { data: helmPvcList } = useK8sList<K8sPVC>(
+    {
+      apiGroup: "",
+      apiVersion: "v1",
+      plural: "persistentvolumeclaims",
+      namespace: tenantNamespace ?? undefined,
+    },
+    {
+      enabled: !!tenantNamespace,
+      labelSelector: helmLabelSelector,
     },
   )
 
@@ -76,12 +135,17 @@ export function EventsTab({ ad: _ad, instance }: EventsTabProps) {
     },
   )
 
-  // Build set of resource names that belong to this application
+  // Build set of resource names that belong to this application.
+  // helmReleaseName covers the HelmRelease object itself and any Helm-managed
+  // child resources that share the same name (e.g. DataVolume for VMDisk).
   const allEvents = eventsList?.items || []
-  const pods = podsList?.items || []
+  const pods = [...(podsList?.items || []), ...(helmPodsList?.items || [])]
+  const pvcs = [...(pvcList?.items || []), ...(helmPvcList?.items || [])]
   const relatedResourceNames = new Set<string>([
-    instance.metadata.name, // The instance itself
-    ...pods.map((pod) => pod.metadata.name), // All pods
+    instance.metadata.name,
+    helmReleaseName,
+    ...pods.map((pod) => pod.metadata.name),
+    ...pvcs.map((pvc) => pvc.metadata.name),
   ])
 
   // Filter events related to this application

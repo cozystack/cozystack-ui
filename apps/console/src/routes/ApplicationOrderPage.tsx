@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router"
 import { ChevronLeft, FileCode, FormInput } from "lucide-react"
 import yaml from "js-yaml"
@@ -12,8 +12,14 @@ import {
 } from "../lib/app-definitions.ts"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { composeResource } from "../lib/app-resource.ts"
-import { SchemaForm } from "../components/SchemaForm.tsx"
-import { YamlEditor } from "../components/YamlEditor.tsx"
+import { prepareUpdateSpec } from "../lib/prepare-update.ts"
+import { SchemaForm, type SchemaFormHandle } from "../components/SchemaForm.tsx"
+
+// Lazy-load the YAML editor so monaco and its workers are code-split into their
+// own chunk, fetched only when the YAML view is opened.
+const YamlEditor = lazy(() =>
+  import("../components/YamlEditor.tsx").then((m) => ({ default: m.YamlEditor })),
+)
 
 type Mode = "form" | "yaml"
 
@@ -40,6 +46,21 @@ export function ApplicationOrderPage({
   const [mode, setMode] = useState<Mode>("form")
   const [yamlText, setYamlText] = useState("")
   const [yamlError, setYamlError] = useState<string | null>(null)
+  // Snapshot of the persisted spec captured the first time we see an
+  // editMode prop. ApplicationEditRoute reconstructs `editMode` on every
+  // React-Query refetch, so reading `editMode.initialSpec` at save time
+  // would pick up whatever the cluster has right now, not what the user
+  // saw when they opened the form. The ref locks the overlay source to
+  // the value the user actually viewed.
+  const initialSpecRef = useRef<unknown>(editMode?.initialSpec)
+  const initialSpecCapturedRef = useRef(false)
+  const schemaFormRef = useRef<SchemaFormHandle>(null)
+  useEffect(() => {
+    if (editMode && !initialSpecCapturedRef.current) {
+      initialSpecCapturedRef.current = true
+      initialSpecRef.current = editMode.initialSpec
+    }
+  }, [editMode])
 
   const plural = ad?.spec?.application.plural ?? ""
 
@@ -106,9 +127,25 @@ export function ApplicationOrderPage({
       alert("Please set a resource name.")
       return
     }
+    // The Deploy button lives outside RJSF and bypasses its submit, so trigger
+    // validation explicitly in form mode. RJSF renders the errors inline; abort
+    // so an invalid spec (e.g. a disk row left without a name) is never sent to
+    // the API. YAML mode hand-authors the spec and is left to the API to reject.
+    if (mode === "form" && schemaFormRef.current && !schemaFormRef.current.validate()) {
+      return
+    }
     const body = composeResource(ad, tenantNamespace, snap.name, snap.spec)
     try {
       if (editMode) {
+        // initialSpecRef holds the value the user saw when the form
+        // opened; if the resource is mutated externally between mount and
+        // Save, the overlay reinstates the mount-time value. That's the
+        // documented trade-off — re-mount to pick up fresh state.
+        body.spec = prepareUpdateSpec<Record<string, unknown>>(
+          body.spec ?? {},
+          (initialSpecRef.current ?? {}) as Record<string, unknown>,
+          ad.spec?.application.openAPISchema ?? "",
+        )
         await update.mutateAsync(body)
       } else {
         await create.mutateAsync(body)
@@ -141,13 +178,12 @@ export function ApplicationOrderPage({
   const icon = iconDataUrl(ad)
   const displayName = appDisplayName(ad)
   const description = ad.spec?.dashboard?.description
-
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-slate-200 bg-white px-6 pt-4 pb-3">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => editMode ? navigate(`/console/${plural}/${editMode.name}`) : navigate(-1)}
           className="mb-2 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"
         >
           <ChevronLeft className="size-3.5" /> Back
@@ -172,27 +208,29 @@ export function ApplicationOrderPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
               <button
                 type="button"
+                aria-pressed={mode === "form"}
                 onClick={() => (mode === "yaml" ? enterForm() : undefined)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
                   mode === "form"
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
+                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-500 hover:text-slate-700",
                 )}
               >
                 <FormInput className="size-3.5" /> Form
               </button>
               <button
                 type="button"
+                aria-pressed={mode === "yaml"}
                 onClick={() => (mode === "form" ? enterYaml() : undefined)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
                   mode === "yaml"
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-50",
+                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200"
+                    : "text-slate-500 hover:text-slate-700",
                 )}
               >
                 <FileCode className="size-3.5" /> YAML
@@ -201,7 +239,7 @@ export function ApplicationOrderPage({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(-1)}
+              onClick={() => editMode ? navigate(`/console/${plural}/${editMode.name}`) : navigate(-1)}
               disabled={create.isPending || update.isPending}
             >
               Cancel
@@ -220,10 +258,10 @@ export function ApplicationOrderPage({
       </div>
 
       {mode === "form" ? (
-        <div className="flex-1 overflow-auto bg-slate-50 p-6">
-          <div className="mx-auto max-w-3xl space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <label className="mb-1 block text-sm font-medium text-slate-700">
+        <div className="flex-1 overflow-auto bg-slate-50 p-4">
+          <div className="space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <label className="mb-1 block text-xs font-medium text-slate-600">
                 Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -232,7 +270,7 @@ export function ApplicationOrderPage({
                 onChange={(e) => setName(e.target.value)}
                 disabled={!!editMode}
                 placeholder={ad.spec?.application.singular ?? "name"}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-500"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50 disabled:text-slate-400"
               />
               {tenantNamespace && (
                 <p className="mt-1.5 text-xs text-slate-500">
@@ -241,12 +279,14 @@ export function ApplicationOrderPage({
               )}
             </div>
             {ad.spec?.application.openAPISchema && (
-              <div className="rounded-lg border border-slate-200 bg-white p-5">
+              <div className="rounded-lg border border-slate-200 bg-white p-4">
                 <SchemaForm
+                  ref={schemaFormRef}
                   openAPISchema={ad.spec.application.openAPISchema}
                   keysOrder={ad.spec?.dashboard?.keysOrder}
                   formData={spec}
                   onChange={setSpec}
+                  immutableMode={editMode ? "enforce" : "off"}
                 />
               </div>
             )}
@@ -260,7 +300,15 @@ export function ApplicationOrderPage({
             </div>
           )}
           <div className="flex-1">
-            <YamlEditor value={yamlText} onChange={setYamlText} />
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center">
+                  <Spinner />
+                </div>
+              }
+            >
+              <YamlEditor value={yamlText} onChange={setYamlText} />
+            </Suspense>
           </div>
         </div>
       )}

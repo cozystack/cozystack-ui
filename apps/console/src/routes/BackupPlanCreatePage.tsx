@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useNavigate } from "react-router"
 import { Archive, Save } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
@@ -6,38 +6,8 @@ import { useK8sCreate, useK8sList } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useApplicationDefinitions } from "../lib/app-definitions.ts"
 import { useCRDSchema } from "../lib/use-crd-schema.ts"
-import { SchemaForm } from "../components/SchemaForm.tsx"
-
-/**
- * Recursively adds enum values to schema properties
- */
-function enrichSchemaWithEnums(
-  schema: any,
-  path: string[],
-  enumMap: Record<string, string[]>
-): any {
-  if (!schema || typeof schema !== "object") return schema
-
-  const currentPath = path.join(".")
-  const result = { ...schema }
-
-  // Add enum if this path has enum values
-  if (enumMap[currentPath]) {
-    result.enum = enumMap[currentPath]
-  }
-
-  // Recurse into properties
-  if (result.properties) {
-    result.properties = Object.fromEntries(
-      Object.entries(result.properties).map(([key, value]) => [
-        key,
-        enrichSchemaWithEnums(value, [...path, key], enumMap),
-      ])
-    )
-  }
-
-  return result
-}
+import { SchemaForm, type SchemaFormHandle } from "../components/SchemaForm.tsx"
+import { enrichSchemaWithEnums } from "../lib/backup-utils.ts"
 
 export function BackupPlanCreatePage() {
   const navigate = useNavigate()
@@ -45,6 +15,7 @@ export function BackupPlanCreatePage() {
   const { data: appDefs } = useApplicationDefinitions()
   const [formData, setFormData] = useState<any>({})
   const [name, setName] = useState("")
+  const schemaFormRef = useRef<SchemaFormHandle>(null)
 
   // Get base schema from CRD
   const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
@@ -58,8 +29,12 @@ export function BackupPlanCreatePage() {
     plural: "backupclasses",
   })
 
-  // Get instances for selected kind
+  // Get instances for selected kind.
+  // Strict undefined check so an explicit empty string from the user means
+  // "no group" — clearing the field opts out of the cozystack defaults.
   const selectedKind = formData?.applicationRef?.kind
+  const rawApiGroup = formData?.applicationRef?.apiGroup
+  const selectedApiGroup = rawApiGroup === undefined ? "apps.cozystack.io" : rawApiGroup
   const selectedAppDef = useMemo(
     () => appDefs?.items.find(d => d.spec?.application.kind === selectedKind),
     [appDefs, selectedKind]
@@ -70,7 +45,7 @@ export function BackupPlanCreatePage() {
     apiVersion: "v1alpha1",
     plural: selectedAppDef?.spec?.application.plural ?? "",
     namespace: tenantNamespace ?? "",
-  }, { enabled: !!selectedAppDef && !!tenantNamespace })
+  }, { enabled: !!selectedAppDef && !!tenantNamespace && selectedApiGroup === "apps.cozystack.io" })
 
   const createMutation = useK8sCreate({
     apiGroup: "backups.cozystack.io",
@@ -82,8 +57,19 @@ export function BackupPlanCreatePage() {
   const schema = useMemo(() => {
     if (!baseSchema) return null
 
-    const base = JSON.parse(baseSchema)
-    const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
+    let base
+    try {
+      base = JSON.parse(baseSchema)
+    } catch (e) {
+      console.error("Failed to parse Plan schema:", e)
+      return null
+    }
+    // ApplicationDefinitions are exclusive to apps.cozystack.io — show the
+    // Kind dropdown only when the selected apiGroup matches; otherwise leave
+    // it as a free-text input (no enum hint).
+    const kinds: string[] = selectedApiGroup === "apps.cozystack.io"
+      ? appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
+      : []
     const backupClasses = backupClassesData?.items.map((bc: any) => bc.metadata.name) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
@@ -93,7 +79,7 @@ export function BackupPlanCreatePage() {
     if (kinds.length > 0) {
       enumMap["applicationRef.kind"] = kinds
     }
-    if (selectedKind && instances.length > 0) {
+    if (selectedApiGroup === "apps.cozystack.io" && selectedKind && instances.length > 0) {
       enumMap["applicationRef.name"] = instances
     }
     if (backupClasses.length > 0) {
@@ -108,11 +94,20 @@ export function BackupPlanCreatePage() {
       enriched.properties.applicationRef.properties.apiGroup.default = "apps.cozystack.io"
     }
 
-    return JSON.stringify(enriched)
-  }, [baseSchema, appDefs, backupClassesData, instancesData, selectedKind])
+    // Pre-fill cron with a daily 02:00 default so the user starts with a
+    // valid expression they can edit, rather than an empty required field.
+    if (enriched.properties?.schedule?.properties?.cron) {
+      enriched.properties.schedule.properties.cron.default = "0 2 * * *"
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    return JSON.stringify(enriched)
+  }, [baseSchema, appDefs, backupClassesData, instancesData, selectedKind, selectedApiGroup])
+
+  const handleSubmit = async () => {
+    if (!tenantNamespace) {
+      alert("Tenant namespace is not available. Please refresh.")
+      return
+    }
 
     if (!name.trim()) {
       alert("Name is required")
@@ -128,6 +123,10 @@ export function BackupPlanCreatePage() {
       alert("Backup class name is required")
       return
     }
+
+    // The submit button lives outside RJSF and bypasses its validation, so
+    // trigger it explicitly; an invalid spec renders errors inline and aborts.
+    if (schemaFormRef.current && !schemaFormRef.current.validate()) return
 
     const resource = {
       apiVersion: "backups.cozystack.io/v1alpha1",
@@ -181,7 +180,7 @@ export function BackupPlanCreatePage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <div>
         <Section>
           <div className="space-y-4 p-5">
             <div>
@@ -200,6 +199,7 @@ export function BackupPlanCreatePage() {
 
             <div>
               <SchemaForm
+                ref={schemaFormRef}
                 openAPISchema={schema}
                 formData={formData}
                 onChange={setFormData}
@@ -211,9 +211,10 @@ export function BackupPlanCreatePage() {
 
           <div className="flex items-center gap-2 border-t border-slate-200 px-5 py-3">
             <Button
-              type="submit"
+              type="button"
               variant="primary"
               size="sm"
+              onClick={handleSubmit}
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? (
@@ -237,7 +238,7 @@ export function BackupPlanCreatePage() {
             </Button>
           </div>
         </Section>
-      </form>
+      </div>
     </div>
   )
 }

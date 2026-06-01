@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useNavigate } from "react-router"
 import { Archive, Save } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
@@ -6,38 +6,8 @@ import { useK8sCreate, useK8sList } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useApplicationDefinitions } from "../lib/app-definitions.ts"
 import { useCRDSchema } from "../lib/use-crd-schema.ts"
-import { SchemaForm } from "../components/SchemaForm.tsx"
-
-/**
- * Recursively adds enum values to schema properties
- */
-function enrichSchemaWithEnums(
-  schema: any,
-  path: string[],
-  enumMap: Record<string, string[]>
-): any {
-  if (!schema || typeof schema !== "object") return schema
-
-  const currentPath = path.join(".")
-  const result = { ...schema }
-
-  // Add enum if this path has enum values
-  if (enumMap[currentPath]) {
-    result.enum = enumMap[currentPath]
-  }
-
-  // Recurse into properties
-  if (result.properties) {
-    result.properties = Object.fromEntries(
-      Object.entries(result.properties).map(([key, value]) => [
-        key,
-        enrichSchemaWithEnums(value, [...path, key], enumMap),
-      ])
-    )
-  }
-
-  return result
-}
+import { SchemaForm, type SchemaFormHandle } from "../components/SchemaForm.tsx"
+import { enrichSchemaWithEnums } from "../lib/backup-utils.ts"
 
 export function BackupRestoreJobCreatePage() {
   const navigate = useNavigate()
@@ -45,6 +15,7 @@ export function BackupRestoreJobCreatePage() {
   const { data: appDefs } = useApplicationDefinitions()
   const [formData, setFormData] = useState<any>({})
   const [name, setName] = useState("")
+  const schemaFormRef = useRef<SchemaFormHandle>(null)
 
   // Get base schema from CRD
   const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
@@ -59,8 +30,12 @@ export function BackupRestoreJobCreatePage() {
     namespace: tenantNamespace ?? "",
   }, { enabled: !!tenantNamespace })
 
-  // Get instances for selected target kind
-  const selectedKind = formData?.targetRef?.kind
+  // Get instances for selected target kind.
+  // Strict undefined check so an explicit empty string from the user means
+  // "no group" — clearing the field opts out of the cozystack defaults.
+  const selectedKind = formData?.targetApplicationRef?.kind
+  const rawApiGroup = formData?.targetApplicationRef?.apiGroup
+  const selectedApiGroup = rawApiGroup === undefined ? "apps.cozystack.io" : rawApiGroup
   const selectedAppDef = useMemo(
     () => appDefs?.items.find(d => d.spec?.application.kind === selectedKind),
     [appDefs, selectedKind]
@@ -71,7 +46,7 @@ export function BackupRestoreJobCreatePage() {
     apiVersion: "v1alpha1",
     plural: selectedAppDef?.spec?.application.plural ?? "",
     namespace: tenantNamespace ?? "",
-  }, { enabled: !!selectedAppDef && !!tenantNamespace })
+  }, { enabled: !!selectedAppDef && !!tenantNamespace && selectedApiGroup === "apps.cozystack.io" })
 
   const createMutation = useK8sCreate({
     apiGroup: "backups.cozystack.io",
@@ -83,9 +58,21 @@ export function BackupRestoreJobCreatePage() {
   const schema = useMemo(() => {
     if (!baseSchema) return null
 
-    const base = JSON.parse(baseSchema)
+    let base
+    try {
+      base = JSON.parse(baseSchema)
+    } catch (e) {
+      console.error("Failed to parse RestoreJob schema:", e)
+      return null
+    }
     const backups = backupsData?.items.map((b: any) => b.metadata.name) ?? []
-    const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
+    // ApplicationDefinitions live under apps.cozystack.io exclusively, so the
+    // Kind dropdown is populated only when the selected apiGroup matches.
+    // For any other apiGroup the user is on their own (no enum hint), which
+    // matches the free-text fallback behavior of plain CRD fields.
+    const kinds: string[] = selectedApiGroup === "apps.cozystack.io"
+      ? appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
+      : []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
     const enumMap: Record<string, string[]> = {}
@@ -95,26 +82,51 @@ export function BackupRestoreJobCreatePage() {
       enumMap["backupRef.name"] = backups
     }
     if (kinds.length > 0) {
-      enumMap["targetRef.kind"] = kinds
+      enumMap["targetApplicationRef.kind"] = kinds
     }
-    // Add instances enum only after kind is selected
-    if (selectedKind && instances.length > 0) {
-      enumMap["targetRef.name"] = instances
+    // Add instances enum only after kind is selected and apiGroup matches
+    // (ApplicationDefinitions cover apps.cozystack.io only — for any other
+    // apiGroup the user is on free-text fallback).
+    if (selectedApiGroup === "apps.cozystack.io" && selectedKind && instances.length > 0) {
+      enumMap["targetApplicationRef.name"] = instances
     }
 
     // Enrich schema with enum values
     const enriched = enrichSchemaWithEnums(base, [], enumMap)
 
     // Add default value for apiGroup
-    if (enriched.properties?.targetRef?.properties?.apiGroup) {
-      enriched.properties.targetRef.properties.apiGroup.default = "apps.cozystack.io"
+    if (enriched.properties?.targetApplicationRef?.properties?.apiGroup) {
+      enriched.properties.targetApplicationRef.properties.apiGroup.default = "apps.cozystack.io"
+    }
+
+    // The CRD ships backupRef.name with `default: ""` (k8s LocalObjectReference
+    // convention). Combined with an enum injected here, RJSF's SelectWidget
+    // can lose the user's selection on re-render — strip the default so the
+    // widget starts empty and the chosen value is the single source of truth.
+    if (enriched.properties?.backupRef?.properties?.name?.default !== undefined) {
+      delete enriched.properties.backupRef.properties.name.default
+    }
+
+    // spec.options is a driver-specific blob — the CRD declares it as
+    // `type: object` + `x-kubernetes-preserve-unknown-fields: true`, which
+    // sanitizeSchema flattens to `additionalProperties: true`. RJSF then has
+    // no widget for it. Rewrite to a typed map so AdditionalPropertiesField
+    // auto-attaches and the user gets a key/value editor.
+    if (enriched.properties?.options) {
+      delete enriched.properties.options["x-kubernetes-preserve-unknown-fields"]
+      enriched.properties.options.type = "object"
+      enriched.properties.options.additionalProperties = { type: "string" }
+      enriched.properties.options.properties = enriched.properties.options.properties ?? {}
     }
 
     return JSON.stringify(enriched)
-  }, [baseSchema, backupsData, appDefs, instancesData, selectedKind])
+  }, [baseSchema, backupsData, appDefs, instancesData, selectedKind, selectedApiGroup])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
+    if (!tenantNamespace) {
+      alert("Tenant namespace is not available. Please refresh.")
+      return
+    }
 
     if (!name.trim()) {
       alert("Name is required")
@@ -126,9 +138,26 @@ export function BackupRestoreJobCreatePage() {
       return
     }
 
-    if (!formData.targetRef?.kind || !formData.targetRef?.name) {
-      alert("Target reference is required")
+    // targetApplicationRef is optional in the CRD — when omitted, the driver
+    // restores into the same application referenced by the backup. Reject
+    // partial input (kind without name or vice versa), but accept an empty ref.
+    const target = formData.targetApplicationRef
+    const hasTargetKind = !!target?.kind
+    const hasTargetName = !!target?.name
+    if (hasTargetKind !== hasTargetName) {
+      alert("Target reference requires both Kind and Name, or leave both empty to restore into the source application")
       return
+    }
+
+    // The submit button lives outside RJSF and bypasses its validation, so
+    // trigger it explicitly; an invalid spec renders errors inline and aborts.
+    if (schemaFormRef.current && !schemaFormRef.current.validate()) return
+
+    // Strip an empty targetApplicationRef so the API does not receive an empty
+    // object that the API server would reject as malformed.
+    const spec = { ...formData }
+    if (!hasTargetKind && !hasTargetName) {
+      delete spec.targetApplicationRef
     }
 
     const resource = {
@@ -138,7 +167,7 @@ export function BackupRestoreJobCreatePage() {
         name: name.trim(),
         namespace: tenantNamespace ?? undefined,
       },
-      spec: formData,
+      spec,
     }
 
     try {
@@ -183,7 +212,7 @@ export function BackupRestoreJobCreatePage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <div>
         <Section>
           <div className="space-y-4 p-5">
             <div>
@@ -202,6 +231,7 @@ export function BackupRestoreJobCreatePage() {
 
             <div>
               <SchemaForm
+                ref={schemaFormRef}
                 openAPISchema={schema}
                 formData={formData}
                 onChange={setFormData}
@@ -213,9 +243,10 @@ export function BackupRestoreJobCreatePage() {
 
           <div className="flex items-center gap-2 border-t border-slate-200 px-5 py-3">
             <Button
-              type="submit"
+              type="button"
               variant="primary"
               size="sm"
+              onClick={handleSubmit}
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? (
@@ -239,7 +270,7 @@ export function BackupRestoreJobCreatePage() {
             </Button>
           </div>
         </Section>
-      </form>
+      </div>
     </div>
   )
 }

@@ -19,6 +19,12 @@ export default defineConfig({
   server: {
     port: 3001,
     proxy: {
+      "/k8s": {
+        target: "http://localhost:8001",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/k8s/, ""),
+        ws: true,
+      },
       "/apis": {
         target: "http://localhost:8001",
         changeOrigin: true,

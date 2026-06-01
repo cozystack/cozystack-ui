@@ -3,6 +3,7 @@ import {
   Archive,
   Cloud,
   Database,
+  Gauge,
   Globe,
   Info,
   LayoutGrid,
@@ -13,6 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { SidebarSection } from "@cozystack/ui"
+import { useSelfSubjectAccessReview } from "@cozystack/k8s-client"
+import { useBackupClassAdminAccess } from "../hooks/useBackupClassAdminAccess.ts"
 import { useApplicationDefinitions, groupByCategory } from "../lib/app-definitions.ts"
 import { humanizeKind } from "../lib/humanize.ts"
 import {
@@ -69,6 +72,20 @@ export function useMarketplaceSidebarSections(): SidebarSection[] {
 export function useConsoleSidebarSections(): SidebarSection[] {
   const { data } = useApplicationDefinitions()
   const grouped = useMemo(() => groupByCategory(data), [data])
+  // Permission gate for the Cluster Usage entry: only operators with
+  // cluster-wide nodes/list see the menu item. Loading and error states
+  // resolve as "not allowed" so the entry never flickers in then out
+  // for users who can't see it.
+  const clusterUsageReview = useSelfSubjectAccessReview({
+    resourceAttributes: { resource: "nodes", verb: "list" },
+  })
+  const canSeeClusterUsage =
+    !clusterUsageReview.isLoading &&
+    !clusterUsageReview.error &&
+    clusterUsageReview.allowed
+  // Backup Classes is admin-only: tenants have cluster-wide read on
+  // backupclasses, so the entry is gated on write (update), not list.
+  const { allowed: canManageBackupClasses } = useBackupClassAdminAccess()
 
   return useMemo<SidebarSection[]>(() => {
     const sorted = [...grouped]
@@ -109,6 +126,12 @@ export function useConsoleSidebarSections(): SidebarSection[] {
     const administrationSection: SidebarSection = {
       title: "Administration",
       items: [
+        ...(canSeeClusterUsage
+          ? [{ label: "Cluster Usage", to: "/console/cluster-usage", icon: Gauge }]
+          : []),
+        ...(canManageBackupClasses
+          ? [{ label: "Backups", to: "/console/backups/backupclasses", icon: Archive }]
+          : []),
         { label: "Info", to: "/console/info", icon: Info },
         { label: "Modules", to: "/console/modules", icon: ToyBrick },
         { label: "External IPs", to: "/console/external-ips", icon: Globe },
@@ -117,5 +140,5 @@ export function useConsoleSidebarSections(): SidebarSection[] {
     }
 
     return [...categorySections, backupsSection, administrationSection]
-  }, [grouped])
+  }, [grouped, canSeeClusterUsage, canManageBackupClasses])
 }

@@ -84,7 +84,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     tenants,
     selectedTenant,
     selectTenant,
-    tenantNamespace: ns,
+    tenantNamespace: list.isLoading ? null : ns,
     isLoading: list.isLoading,
     error: list.error,
   }

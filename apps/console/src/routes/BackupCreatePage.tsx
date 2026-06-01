@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useNavigate } from "react-router"
 import { Archive, Save } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
@@ -6,38 +6,8 @@ import { useK8sCreate, useK8sList } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useApplicationDefinitions } from "../lib/app-definitions.ts"
 import { useCRDSchema } from "../lib/use-crd-schema.ts"
-import { SchemaForm } from "../components/SchemaForm.tsx"
-
-/**
- * Recursively adds enum values to schema properties
- */
-function enrichSchemaWithEnums(
-  schema: any,
-  path: string[],
-  enumMap: Record<string, string[]>
-): any {
-  if (!schema || typeof schema !== "object") return schema
-
-  const currentPath = path.join(".")
-  const result = { ...schema }
-
-  // Add enum if this path has enum values
-  if (enumMap[currentPath]) {
-    result.enum = enumMap[currentPath]
-  }
-
-  // Recurse into properties
-  if (result.properties) {
-    result.properties = Object.fromEntries(
-      Object.entries(result.properties).map(([key, value]) => [
-        key,
-        enrichSchemaWithEnums(value, [...path, key], enumMap),
-      ])
-    )
-  }
-
-  return result
-}
+import { SchemaForm, type SchemaFormHandle } from "../components/SchemaForm.tsx"
+import { enrichSchemaWithEnums } from "../lib/backup-utils.ts"
 
 export function BackupCreatePage() {
   const navigate = useNavigate()
@@ -45,6 +15,7 @@ export function BackupCreatePage() {
   const { data: appDefs } = useApplicationDefinitions()
   const [formData, setFormData] = useState<any>({})
   const [name, setName] = useState("")
+  const schemaFormRef = useRef<SchemaFormHandle>(null)
 
   // Get base schema from CRD
   const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
@@ -103,9 +74,7 @@ export function BackupCreatePage() {
     return JSON.stringify(enriched)
   }, [baseSchema, appDefs, instancesData, selectedKind])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleSubmit = async () => {
     if (!name.trim()) {
       alert("Name is required")
       return
@@ -125,6 +94,10 @@ export function BackupCreatePage() {
       alert("Taken at timestamp is required")
       return
     }
+
+    // The submit button lives outside RJSF and bypasses its validation, so
+    // trigger it explicitly; an invalid spec renders errors inline and aborts.
+    if (schemaFormRef.current && !schemaFormRef.current.validate()) return
 
     const resource = {
       apiVersion: "backups.cozystack.io/v1alpha1",
@@ -178,7 +151,7 @@ export function BackupCreatePage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <div>
         <Section>
           <div className="space-y-4 p-5">
             <div>
@@ -197,6 +170,7 @@ export function BackupCreatePage() {
 
             <div>
               <SchemaForm
+                ref={schemaFormRef}
                 openAPISchema={schema}
                 formData={formData}
                 onChange={setFormData}
@@ -208,9 +182,10 @@ export function BackupCreatePage() {
 
           <div className="flex items-center gap-2 border-t border-slate-200 px-5 py-3">
             <Button
-              type="submit"
+              type="button"
               variant="primary"
               size="sm"
+              onClick={handleSubmit}
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? (
@@ -234,7 +209,7 @@ export function BackupCreatePage() {
             </Button>
           </div>
         </Section>
-      </form>
+      </div>
     </div>
   )
 }

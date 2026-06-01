@@ -24,7 +24,7 @@ export function Section({
   children,
 }: SectionProps) {
   return (
-    <section className={cn("rounded-lg border border-slate-200 bg-white", className)}>
+    <section className={cn("rounded-lg border border-slate-200 bg-white shadow-xs", className)}>
       {(title || actions) && (
         <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
           <div>

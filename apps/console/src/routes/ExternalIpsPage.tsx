@@ -23,14 +23,17 @@ interface ServiceStatus {
  */
 export function ExternalIpsPage() {
   const { tenantNamespace } = useTenantContext()
-  const { data, isLoading } = useK8sList<K8sResource<ServiceSpec, ServiceStatus>>({
-    apiGroup: "",
-    apiVersion: "v1",
-    plural: "services",
-    namespace: tenantNamespace ?? undefined,
-  })
+  const { data, isLoading } = useK8sList<K8sResource<ServiceSpec, ServiceStatus>>(
+    {
+      apiGroup: "",
+      apiVersion: "v1",
+      plural: "services",
+      namespace: tenantNamespace ?? undefined,
+    },
+    { fieldSelector: "spec.type=LoadBalancer" },
+  )
 
-  const items = (data?.items ?? []).filter((svc) => svc.spec?.type === "LoadBalancer")
+  const items = data?.items ?? []
 
   return (
     <div className="p-6">

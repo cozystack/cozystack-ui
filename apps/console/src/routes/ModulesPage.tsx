@@ -32,7 +32,7 @@ const APP_KIND_LABEL = "apps.cozystack.io/application.kind"
  */
 export function ModulesPage() {
   const { data: defs, isLoading: defsLoading } = useApplicationDefinitions()
-  const { tenantNamespace } = useTenantContext()
+  const { tenantNamespace, selectedTenant } = useTenantContext()
 
   const { data: tmList, isLoading: tmLoading } = useK8sList<K8sResource>(
     { ...TENANT_MODULES_REF, namespace: tenantNamespace ?? undefined },
@@ -84,6 +84,7 @@ export function ModulesPage() {
               key={ad.metadata.name}
               ad={ad}
               installed={tmByKind.get(ad.spec?.application.kind ?? "")}
+              tenantName={selectedTenant ?? undefined}
             />
           ))}
         </div>
@@ -95,23 +96,27 @@ export function ModulesPage() {
 function ModuleCard({
   ad,
   installed,
+  tenantName,
 }: {
   ad: ApplicationDefinition
   installed: K8sResource | undefined
+  tenantName?: string
 }) {
   const kind = ad.spec?.application.kind ?? ad.metadata.name
   const plural = ad.spec?.application.plural ?? ad.metadata.name
   const singletonName = installed?.metadata.name ?? kind.toLowerCase()
   const enabled = !!installed
+  const canNavigate = enabled || !!tenantName
   const target = enabled
     ? `/console/${plural}/${singletonName}`
-    : `/marketplace/${ad.metadata.name}`
+    : `/console/tenants/${tenantName}/edit`
   const icon = iconDataUrl(ad)
 
   return (
     <Link
-      to={target}
-      className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition-shadow hover:shadow-sm"
+      to={canNavigate ? target : "#"}
+      aria-disabled={!canNavigate}
+      className={`flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition-shadow ${canNavigate ? "hover:shadow-sm" : "opacity-50 cursor-not-allowed pointer-events-none"}`}
     >
       <div className="size-10 shrink-0 overflow-hidden rounded-md bg-slate-100">
         {icon ? <img src={icon} alt="" className="h-full w-full" /> : null}

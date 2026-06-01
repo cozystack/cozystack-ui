@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import { Archive, Save } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
 import { useK8sGet, useK8sUpdate } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useCRDSchema } from "../lib/use-crd-schema.ts"
-import { SchemaForm } from "../components/SchemaForm.tsx"
+import { prepareUpdateSpec } from "../lib/prepare-update.ts"
+import { SchemaForm, type SchemaFormHandle } from "../components/SchemaForm.tsx"
 
 interface BackupResourceEditPageProps {
   resourceType: "plans" | "backupjobs" | "backups" | "restorejobs"
@@ -22,6 +23,13 @@ export function BackupResourceEditPage({
   const navigate = useNavigate()
   const { tenantNamespace } = useTenantContext()
   const [formData, setFormData] = useState<any>({})
+  const initializedRef = useRef(false)
+  // Snapshot of resource.spec at the moment the form initialised. Used as
+  // the source for the immutable-field overlay so the value the user saw
+  // in the form is the value that goes into the PUT, regardless of any
+  // React-Query refetches in between.
+  const initialSpecRef = useRef<unknown>(null)
+  const schemaFormRef = useRef<SchemaFormHandle>(null)
 
   // Map resourceType to CRD name
   const crdNameMap = {
@@ -55,21 +63,26 @@ export function BackupResourceEditPage({
     namespace: tenantNamespace ?? "",
   })
 
-  // Initialize form data from resource
+  // Initialize form data from resource only once to avoid overwriting in-progress edits on refetch
   useEffect(() => {
-    if (resource?.spec) {
+    if (resource?.spec && !initializedRef.current) {
+      initializedRef.current = true
       setFormData(resource.spec)
+      initialSpecRef.current = resource.spec
     }
   }, [resource])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleSubmit = async () => {
     if (!resource) return
+    if (!schema) return
+
+    // The submit button lives outside RJSF and bypasses its validation, so
+    // trigger it explicitly; an invalid spec renders errors inline and aborts.
+    if (schemaFormRef.current && !schemaFormRef.current.validate()) return
 
     const updated = {
       ...resource,
-      spec: formData,
+      spec: prepareUpdateSpec(formData, initialSpecRef.current, schema),
     }
 
     try {
@@ -108,6 +121,14 @@ export function BackupResourceEditPage({
     )
   }
 
+  if (!schema) {
+    return (
+      <div className="p-8 text-red-600">
+        Failed to load schema. Please refresh the page.
+      </div>
+    )
+  }
+
   return (
     <div className="p-6">
       <div className="mb-5 flex items-center gap-3">
@@ -124,15 +145,17 @@ export function BackupResourceEditPage({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <div>
         <Section>
           <div className="space-y-4 p-5">
             {schema && (
               <div>
                 <SchemaForm
+                  ref={schemaFormRef}
                   openAPISchema={schema}
                   formData={formData}
                   onChange={setFormData}
+                  immutableMode="enforce"
                 >
                   <div className="hidden" />
                 </SchemaForm>
@@ -142,9 +165,10 @@ export function BackupResourceEditPage({
 
           <div className="flex items-center gap-2 border-t border-slate-200 px-5 py-3">
             <Button
-              type="submit"
+              type="button"
               variant="primary"
               size="sm"
+              onClick={handleSubmit}
               disabled={updateMutation.isPending}
             >
               {updateMutation.isPending ? (
@@ -168,7 +192,7 @@ export function BackupResourceEditPage({
             </Button>
           </div>
         </Section>
-      </form>
+      </div>
     </div>
   )
 }

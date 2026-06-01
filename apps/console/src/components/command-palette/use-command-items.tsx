@@ -78,6 +78,7 @@ export function useCommandItems(
 
     for (const ad of ads) {
       const plural = ad.spec?.application.plural ?? ""
+      if (!plural) continue
       const name = appDisplayName(ad)
       const icon = iconDataUrl(ad)
 
@@ -209,6 +210,7 @@ export function useCommandItems(
     // All resource types
     for (const ad of ads) {
       const plural = ad.spec?.application.plural ?? ""
+      if (!plural) continue
       const name = appDisplayName(ad)
       const icon = iconDataUrl(ad)
 
@@ -318,7 +320,8 @@ export function useCommandItems(
     }
   }, [hasQuery, query, level.type, searchItems, rootItems, resourceItems, instanceItems])
 
-  const isLoading = level.type === "resource" && singleLoading
+  const searchLoading = hasQuery && allInstancesQueries.some((q) => q.isLoading)
+  const isLoading = (level.type === "resource" && singleLoading) || searchLoading
 
   return { items: currentItems, isLoading }
 }

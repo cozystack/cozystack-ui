@@ -1,5 +1,6 @@
 import type {
   IconButtonProps,
+  ArrayFieldTemplateItemType,
   TemplatesType,
   FormContextType,
   RJSFSchema,
@@ -12,13 +13,15 @@ import { StorageClassWidget } from "./StorageClassWidget.tsx"
 import { AdditionalPropertiesWidget } from "./AdditionalPropertiesWidget.tsx"
 import { VMDiskWidget } from "./VMDiskWidget.tsx"
 import { BackupClassWidget } from "./BackupClassWidget.tsx"
+import { SensitiveStringWidget } from "./SensitiveStringWidget.tsx"
 
 function IconButton<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
   F extends FormContextType = any,
 >(props: IconButtonProps<T, S, F>) {
-  const { icon, iconType, uiSchema, registry, className, ...btnProps } = props
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { icon, className, uiSchema, registry, iconType, ...btnProps } = props
   return (
     <button
       type="button"
@@ -31,16 +34,46 @@ function IconButton<
 }
 
 const buttonClassName =
-  "rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+  "rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors"
 
 const removeButtonClassName =
-  "rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+  "rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm hover:bg-red-50 hover:border-red-300 transition-colors"
+
+function ArrayFieldItemTemplate<
+  T = any,
+  S extends StrictRJSFSchema = RJSFSchema,
+  F extends FormContextType = any,
+>(props: ArrayFieldTemplateItemType<T, S, F>) {
+  const { children, hasRemove, index, onDropIndexClick, disabled, readonly, schema } = props
+  const isNumeric = (schema as any).type === 'integer' || (schema as any).type === 'number'
+  return (
+    <div className="array-item-row group flex items-center gap-1.5 mb-1">
+      <div className={isNumeric ? 'w-36 shrink-0' : 'flex-1'}>{children}</div>
+      {hasRemove && (
+        <button
+          type="button"
+          aria-label="Remove"
+          className="opacity-0 group-hover:opacity-100 size-[26px] flex-shrink-0 flex items-center justify-center rounded-full border border-red-200 bg-white text-red-400 text-sm leading-none hover:bg-red-50 hover:text-red-600 hover:border-red-300 disabled:opacity-30 transition-all duration-150"
+          onClick={onDropIndexClick(index)}
+          disabled={disabled || readonly}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  )
+}
 
 export const customTemplates = {
   ObjectFieldTemplate: CustomObjectFieldTemplate,
+  ArrayFieldItemTemplate: ArrayFieldItemTemplate,
   ButtonTemplates: {
     AddButton: (props: IconButtonProps) => (
-      <IconButton {...props} icon="+ Add" className={buttonClassName} />
+      <IconButton
+        {...props}
+        icon="+ add"
+        className="mt-0.5 flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-500 hover:text-blue-600 rounded-md border border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/60 bg-white transition-all duration-150 cursor-pointer"
+      />
     ),
     RemoveButton: (props: IconButtonProps) => (
       <IconButton {...props} icon="× Remove" className={removeButtonClassName} />
@@ -62,4 +95,5 @@ export const customWidgets = {
   AdditionalPropertiesWidget: AdditionalPropertiesWidget,
   VMDiskWidget: VMDiskWidget,
   BackupClassWidget: BackupClassWidget,
+  SensitiveStringWidget: SensitiveStringWidget,
 }

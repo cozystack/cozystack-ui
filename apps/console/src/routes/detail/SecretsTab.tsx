@@ -38,18 +38,20 @@ function SecretRow({
   keyName,
   base64Value,
   forceReveal,
+  apiRef = SECRETS_REF,
 }: {
   namespace: string
   name: string
   keyName: string
   base64Value: string
   forceReveal?: boolean
+  apiRef?: typeof SECRETS_REF
 }) {
   const [revealed, setRevealed] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const shouldReveal = forceReveal || revealed
   const { data } = useK8sGet<K8sResource<unknown, unknown> & SecretLike>(
-    { ...SECRETS_REF, namespace, name },
+    { ...apiRef, namespace, name },
     { enabled: shouldReveal },
   )
   const fullValue = shouldReveal
@@ -109,9 +111,11 @@ function SecretRow({
 function SecretItem({
   secret,
   namespace,
+  apiRef = SECRETS_REF,
 }: {
   secret: K8sResource & SecretLike
   namespace: string
+  apiRef?: typeof SECRETS_REF
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [revealAll, setRevealAll] = useState(false)
@@ -163,6 +167,7 @@ function SecretItem({
               keyName={k}
               base64Value={secret.data?.[k] ?? ""}
               forceReveal={revealAll}
+              apiRef={apiRef}
             />
           ))}
         </div>
@@ -200,8 +205,14 @@ export function SecretsTab({
 
   const { data, isLoading } = useK8sList<K8sResource & SecretLike>(
     { ...apiRef, namespace: ns },
-    { labelSelector },
+    {
+      labelSelector,
+      // TenantSecrets Watch ignores labelSelector (cozystack#2527), so disable
+      // live updates and rely on List which honors the selector correctly.
+      watch: !isInTenantNamespace,
+    },
   )
+
   const items = data?.items ?? []
   return (
     <div className="p-6">
@@ -215,7 +226,7 @@ export function SecretsTab({
         ) : (
           <ul className="divide-y divide-slate-100">
             {items.map((sec) => (
-              <SecretItem key={sec.metadata.name} secret={sec} namespace={ns} />
+              <SecretItem key={sec.metadata.name} secret={sec} namespace={ns} apiRef={apiRef} />
             ))}
           </ul>
         )}

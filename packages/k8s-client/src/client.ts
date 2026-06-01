@@ -217,6 +217,10 @@ export class K8sClient {
     })
   }
 
+  getApiGroups(): Promise<APIGroupList> {
+    return this.request<APIGroupList>("/apis")
+  }
+
   watch<T>(
     apiGroup: string,
     apiVersion: string,
@@ -346,4 +350,21 @@ export interface K8sCondition {
 export interface WatchEvent<T> {
   type: "ADDED" | "MODIFIED" | "DELETED" | "BOOKMARK" | "ERROR"
   object: T
+}
+
+export interface APIGroupVersion {
+  groupVersion: string
+  version: string
+}
+
+export interface APIGroup {
+  name: string
+  versions: APIGroupVersion[]
+  preferredVersion?: APIGroupVersion
+}
+
+export interface APIGroupList {
+  kind: string
+  apiVersion: string
+  groups: APIGroup[]
 }

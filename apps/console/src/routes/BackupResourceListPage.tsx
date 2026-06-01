@@ -13,6 +13,18 @@ interface BackupResource {
     namespace?: string
     creationTimestamp?: string
   }
+  spec?: {
+    applicationRef?: {
+      apiGroup?: string
+      kind?: string
+      name?: string
+    }
+    targetApplicationRef?: {
+      apiGroup?: string
+      kind?: string
+      name?: string
+    }
+  }
   status?: {
     phase?: string
     conditions?: Array<{
@@ -110,6 +122,7 @@ export function BackupResourceListPage({ resourceType, title }: BackupResourceLi
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
                   <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Application</th>
                   <th className="px-5 py-3">Namespace</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Age</th>
@@ -126,6 +139,13 @@ export function BackupResourceListPage({ resourceType, title }: BackupResourceLi
                     statusText === "Failed" || statusText === "False" ? "error" :
                     "warn"
 
+                  const appRef = resourceType === "restorejobs"
+                    ? item.spec?.targetApplicationRef
+                    : item.spec?.applicationRef
+                  const appRefText = appRef?.kind && appRef?.name
+                    ? `${appRef.kind}/${appRef.name}`
+                    : appRef?.name || "-"
+
                   return (
                     <tr
                       key={item.metadata.name}
@@ -133,6 +153,9 @@ export function BackupResourceListPage({ resourceType, title }: BackupResourceLi
                     >
                       <td className="px-5 py-3 text-sm font-medium text-slate-900">
                         {item.metadata.name}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-slate-600">
+                        {appRefText}
                       </td>
                       <td className="px-5 py-3 text-sm text-slate-600">
                         {item.metadata.namespace}

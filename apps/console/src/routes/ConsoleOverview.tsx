@@ -10,6 +10,7 @@ import {
 } from "../lib/app-definitions.ts"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { InstanceCard } from "../components/InstanceCard.tsx"
+import { QuotaPanel } from "../components/QuotaDisplay.tsx"
 
 function TenantApps({ ad, namespace }: { ad: ApplicationDefinition; namespace: string }) {
   const { data } = useApplicationInstances(ad, namespace)
@@ -77,12 +78,14 @@ export function ConsoleOverview() {
           </Button>
         </Link>
       </div>
+      <QuotaPanel namespace={tenantNamespace} />
+
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-slate-500">
+        <div className="mt-6 flex items-center gap-2 text-sm text-slate-500">
           <Spinner /> Loading…
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="mt-6 space-y-6">
           {ads.map((ad) => (
             <TenantApps key={ad.metadata.name} ad={ad} namespace={tenantNamespace} />
           ))}

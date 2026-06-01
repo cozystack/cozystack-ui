@@ -3,6 +3,9 @@ ARG NODE_VERSION=22-alpine
 # Stage 1: Install dependencies and build
 FROM node:${NODE_VERSION} AS builder
 
+ARG APP_VERSION
+ENV VITE_APP_VERSION=${APP_VERSION}
+
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /src
@@ -41,18 +44,18 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # Kubernetes API proxy through BFF for authentication
-    # BFF container handles ServiceAccount auth and proxies to k8s.default.svc
+    # Kubernetes API proxy for both core and aggregated groups.
+    # Chunked-encoding watches require proxy_buffering off and a long timeout.
     location /apis {
         proxy_http_version 1.1;
         proxy_buffering off;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header Host kubernetes.default.svc;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
-        proxy_pass http://localhost:64231;
+        proxy_pass https://kubernetes.default.svc:443;
     }
 
     location /api {
@@ -61,10 +64,24 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
+        proxy_set_header Host kubernetes.default.svc;
         proxy_read_timeout 86400s;
         proxy_send_timeout 86400s;
-        proxy_pass http://localhost:64231;
+        proxy_pass https://kubernetes.default.svc:443;
+    }
+
+    # /k8s prefix for VNC WebSocket compatibility
+    location /k8s/ {
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host kubernetes.default.svc;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+        rewrite /k8s/(.*) /$1 break;
+        proxy_pass https://kubernetes.default.svc:443;
     }
 
     # SPA fallback: serve index.html for all frontend routes.

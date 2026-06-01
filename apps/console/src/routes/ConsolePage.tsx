@@ -4,13 +4,19 @@ import { TenantsPage } from "./TenantsPage.tsx"
 import { ModulesPage } from "./ModulesPage.tsx"
 import { ExternalIpsPage } from "./ExternalIpsPage.tsx"
 import { InfoRedirect } from "./InfoRedirect.tsx"
+import { ClusterUsagePage } from "./ClusterUsagePage.tsx"
 import { ApplicationListPage } from "./ApplicationListPage.tsx"
 import { ApplicationDetailPage } from "./detail/ApplicationDetailPage.tsx"
 import { ApplicationEditRoute } from "./detail/ApplicationEditRoute.tsx"
 import { BackupResourceListPage } from "./BackupResourceListPage.tsx"
-import { BackupResourceCreatePageWithData } from "./BackupResourceCreatePageWithData.tsx"
+import { BackupClassListPage } from "./BackupClassListPage.tsx"
+import { BackupClassDetailPage } from "./BackupClassDetailPage.tsx"
+import { BackupClassEditPage } from "./BackupClassEditPage.tsx"
+import { BackupClassCreatePage } from "./BackupClassCreatePage.tsx"
+import { BackupClassAdminGuard } from "./BackupClassAdminGuard.tsx"
 import { BackupResourceEditPage } from "./BackupResourceEditPage.tsx"
 import { BackupPlanCreatePage } from "./BackupPlanCreatePage.tsx"
+import { BackupJobCreatePage } from "./BackupJobCreatePage.tsx"
 import { BackupCreatePage } from "./BackupCreatePage.tsx"
 import { BackupRestoreJobCreatePage } from "./BackupRestoreJobCreatePage.tsx"
 import { ApplicationOrderPage } from "./ApplicationOrderPage.tsx"
@@ -23,6 +29,7 @@ export function ConsolePage() {
       <Route path="modules" element={<ModulesPage />} />
       <Route path="external-ips" element={<ExternalIpsPage />} />
       <Route path="tenants" element={<TenantsPage />} />
+      <Route path="cluster-usage" element={<ClusterUsagePage />} />
       <Route
         path="backups/plans"
         element={<BackupResourceListPage resourceType="plans" title="Plans" />}
@@ -41,7 +48,7 @@ export function ConsolePage() {
       />
       <Route
         path="backups/backupjobs/create"
-        element={<BackupResourceCreatePageWithData resourceType="backupjobs" title="Backup Jobs" />}
+        element={<BackupJobCreatePage />}
       />
       <Route
         path="backups/backupjobs/:name/edit"
@@ -71,6 +78,12 @@ export function ConsolePage() {
         path="backups/restorejobs/:name/edit"
         element={<BackupResourceEditPage resourceType="restorejobs" title="Restore Jobs" />}
       />
+      <Route element={<BackupClassAdminGuard />}>
+        <Route path="backups/backupclasses" element={<BackupClassListPage />} />
+        <Route path="backups/backupclasses/create" element={<BackupClassCreatePage />} />
+        <Route path="backups/backupclasses/:name" element={<BackupClassDetailPage />} />
+        <Route path="backups/backupclasses/:name/edit" element={<BackupClassEditPage />} />
+      </Route>
       <Route path="new/:appName" element={<ApplicationOrderPage />} />
       <Route path=":plural/:name/edit" element={<ApplicationEditRoute />} />
       <Route path=":plural/:name/*" element={<ApplicationDetailPage />} />

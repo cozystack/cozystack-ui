@@ -1,4 +1,3 @@
-import { useEffect } from "react"
 import type { WidgetProps } from "@rjsf/utils"
 import { useK8sList } from "@cozystack/k8s-client"
 import { APPS_GROUP, APPS_VERSION } from "@cozystack/types"
@@ -29,39 +28,41 @@ export function VMDiskWidget(props: WidgetProps) {
   })
 
   const disks = diskList?.items || []
+  const currentValue = typeof value === "string" ? value : ""
+  const hasCurrentInList = disks.some((d) => d.metadata.name === currentValue)
 
-  // Auto-select first disk if required and no value set
-  useEffect(() => {
-    if (required && !value && disks.length > 0 && !isLoading) {
-      onChange(disks[0].metadata.name)
-    }
-  }, [required, value, disks, isLoading, onChange])
+  const placeholder = isLoading
+    ? "Loading..."
+    : disks.length === 0
+      ? "No disks available"
+      : required
+        ? "Select a disk..."
+        : "-- None --"
 
   return (
     <select
-      value={value || ""}
+      value={currentValue}
       onChange={(e) => onChange(e.target.value || undefined)}
-      disabled={disabled || readonly || isLoading}
+      disabled={disabled || readonly}
       required={required}
       className="w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {!required && <option value="">-- None --</option>}
-      {isLoading ? (
-        <option value="">Loading...</option>
-      ) : disks.length === 0 ? (
-        <option value="" disabled>
-          No disks available
-        </option>
-      ) : (
-        disks.map((disk) => {
-          const label = `${disk.metadata.name} (${disk.spec.storage})`
-          return (
-            <option key={disk.metadata.name} value={disk.metadata.name}>
-              {label}
-            </option>
-          )
-        })
+      {/* Always render an explicit placeholder so a value-less required select
+          shows it instead of silently displaying the first disk. Disabled when
+          required so the empty state can be displayed but never picked. */}
+      <option value="" disabled={required}>
+        {placeholder}
+      </option>
+      {/* Keep the committed value visible even before the list loads it, so an
+          async re-render of useK8sList never drops the parent's selection. */}
+      {currentValue && !hasCurrentInList && (
+        <option value={currentValue}>{currentValue}</option>
       )}
+      {disks.map((disk) => (
+        <option key={disk.metadata.name} value={disk.metadata.name}>
+          {`${disk.metadata.name} (${disk.spec.storage})`}
+        </option>
+      ))}
     </select>
   )
 }
