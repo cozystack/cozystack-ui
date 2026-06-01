@@ -9,10 +9,8 @@ import type {
 } from "@rjsf/utils"
 import { CustomObjectFieldTemplate } from "./CustomObjectFieldTemplate.tsx"
 import { SourceWidget } from "./SourceWidget.tsx"
-import { StorageClassWidget } from "./StorageClassWidget.tsx"
+import { DynamicOptionsWidget } from "./DynamicOptionsWidget.tsx"
 import { AdditionalPropertiesWidget } from "./AdditionalPropertiesWidget.tsx"
-import { VMDiskWidget } from "./VMDiskWidget.tsx"
-import { BackupClassWidget } from "./BackupClassWidget.tsx"
 import { SensitiveStringWidget } from "./SensitiveStringWidget.tsx"
 
 function IconButton<
@@ -91,9 +89,7 @@ export const customTemplates = {
 
 export const customWidgets = {
   SourceWidget: SourceWidget,
-  StorageClassWidget: StorageClassWidget,
+  DynamicOptionsWidget: DynamicOptionsWidget,
   AdditionalPropertiesWidget: AdditionalPropertiesWidget,
-  VMDiskWidget: VMDiskWidget,
-  BackupClassWidget: BackupClassWidget,
   SensitiveStringWidget: SensitiveStringWidget,
 }
