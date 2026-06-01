@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from "react"
+import { useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from "react"
 import Form from "@rjsf/core"
 import validator from "@rjsf/validator-ajv8"
 import { getDefaultFormState } from "@rjsf/utils"
@@ -267,14 +267,31 @@ interface SchemaFormProps {
   immutableMode?: "enforce" | "off"
 }
 
-export function SchemaForm({
+export interface SchemaFormHandle {
+  /**
+   * Run RJSF validation against the current form data and render any errors
+   * inline. Returns whether the form is valid. The Deploy button lives
+   * outside this component and bypasses RJSF's own submit, so callers gate
+   * their submit on this before sending the resource to the API.
+   */
+  validate: () => boolean
+}
+
+export const SchemaForm = forwardRef<SchemaFormHandle, SchemaFormProps>(function SchemaForm({
   openAPISchema,
   keysOrder,
   formData,
   onChange,
   children,
   immutableMode,
-}: SchemaFormProps) {
+}: SchemaFormProps, ref) {
+  const formRef = useRef<Form>(null)
+  useImperativeHandle(
+    ref,
+    () => ({ validate: () => formRef.current?.validateForm() ?? true }),
+    [],
+  )
+
   // Parse the raw schema once, then derive the sanitised RJSFSchema and the
   // immutable-path set from it. We keep the raw object around so we don't
   // re-parse the same string twice on every render. The contract is "same
@@ -380,6 +397,7 @@ export function SchemaForm({
   return (
     <div className="rjsf-container">
       <Form
+        ref={formRef}
         tagName="div"
         schema={schema}
         uiSchema={uiSchema}
@@ -396,4 +414,4 @@ export function SchemaForm({
       </Form>
     </div>
   )
-}
+})

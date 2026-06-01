@@ -6,7 +6,7 @@ import { useK8sGet, useK8sUpdate } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useCRDSchema } from "../lib/use-crd-schema.ts"
 import { prepareUpdateSpec } from "../lib/prepare-update.ts"
-import { SchemaForm } from "../components/SchemaForm.tsx"
+import { SchemaForm, type SchemaFormHandle } from "../components/SchemaForm.tsx"
 
 interface BackupResourceEditPageProps {
   resourceType: "plans" | "backupjobs" | "backups" | "restorejobs"
@@ -29,6 +29,7 @@ export function BackupResourceEditPage({
   // in the form is the value that goes into the PUT, regardless of any
   // React-Query refetches in between.
   const initialSpecRef = useRef<unknown>(null)
+  const schemaFormRef = useRef<SchemaFormHandle>(null)
 
   // Map resourceType to CRD name
   const crdNameMap = {
@@ -74,6 +75,10 @@ export function BackupResourceEditPage({
   const handleSubmit = async () => {
     if (!resource) return
     if (!schema) return
+
+    // The submit button lives outside RJSF and bypasses its validation, so
+    // trigger it explicitly; an invalid spec renders errors inline and aborts.
+    if (schemaFormRef.current && !schemaFormRef.current.validate()) return
 
     const updated = {
       ...resource,
@@ -146,6 +151,7 @@ export function BackupResourceEditPage({
             {schema && (
               <div>
                 <SchemaForm
+                  ref={schemaFormRef}
                   openAPISchema={schema}
                   formData={formData}
                   onChange={setFormData}

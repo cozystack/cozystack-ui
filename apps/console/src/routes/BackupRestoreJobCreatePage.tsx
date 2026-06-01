@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useNavigate } from "react-router"
 import { Archive, Save } from "lucide-react"
 import { Button, Section, Spinner } from "@cozystack/ui"
@@ -6,7 +6,7 @@ import { useK8sCreate, useK8sList } from "@cozystack/k8s-client"
 import { useTenantContext } from "../lib/tenant-context.tsx"
 import { useApplicationDefinitions } from "../lib/app-definitions.ts"
 import { useCRDSchema } from "../lib/use-crd-schema.ts"
-import { SchemaForm } from "../components/SchemaForm.tsx"
+import { SchemaForm, type SchemaFormHandle } from "../components/SchemaForm.tsx"
 import { enrichSchemaWithEnums } from "../lib/backup-utils.ts"
 
 export function BackupRestoreJobCreatePage() {
@@ -15,6 +15,7 @@ export function BackupRestoreJobCreatePage() {
   const { data: appDefs } = useApplicationDefinitions()
   const [formData, setFormData] = useState<any>({})
   const [name, setName] = useState("")
+  const schemaFormRef = useRef<SchemaFormHandle>(null)
 
   // Get base schema from CRD
   const { schema: baseSchema, isLoading: schemaLoading } = useCRDSchema(
@@ -148,6 +149,10 @@ export function BackupRestoreJobCreatePage() {
       return
     }
 
+    // The submit button lives outside RJSF and bypasses its validation, so
+    // trigger it explicitly; an invalid spec renders errors inline and aborts.
+    if (schemaFormRef.current && !schemaFormRef.current.validate()) return
+
     // Strip an empty targetApplicationRef so the API does not receive an empty
     // object that the API server would reject as malformed.
     const spec = { ...formData }
@@ -226,6 +231,7 @@ export function BackupRestoreJobCreatePage() {
 
             <div>
               <SchemaForm
+                ref={schemaFormRef}
                 openAPISchema={schema}
                 formData={formData}
                 onChange={setFormData}
