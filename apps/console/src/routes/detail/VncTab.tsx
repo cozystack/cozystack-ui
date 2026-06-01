@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Monitor } from "lucide-react"
 import { Section, Spinner } from "@cozystack/ui"
+import { useK8sGet, type K8sResource } from "@cozystack/k8s-client"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
 
 interface VncTabProps {
@@ -15,6 +16,26 @@ export function VncTab({ ad, instance }: VncTabProps) {
   // VirtualMachineInstance named "<release.prefix><name>"
   // (e.g. "vm-instance-demo-vm"), which is what the subresource path needs.
   const vmName = `${ad.spec?.release?.prefix ?? ""}${instance.metadata.name}`
+  // Don't open a VNC websocket unless the VM is actually running — there is no
+  // VirtualMachineInstance to attach to otherwise, and the socket would just
+  // error out. Poll the VirtualMachine power state.
+  const { data: vm, isLoading: vmLoading } = useK8sGet<
+    K8sResource<unknown, { printableStatus?: string }>
+  >(
+    {
+      apiGroup: "kubevirt.io",
+      apiVersion: "v1",
+      plural: "virtualmachines",
+      name: vmName,
+      namespace: ns ?? "",
+    },
+    {
+      enabled: appKind === "VMInstance" && !!vmName && !!ns,
+      refetchInterval: 5000,
+    },
+  )
+  const powerStatus = vm?.status?.printableStatus
+  const isRunning = powerStatus === "Running"
   const [error, setError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(true)
   const [connected, setConnected] = useState(false)
@@ -22,7 +43,8 @@ export function VncTab({ ad, instance }: VncTabProps) {
   const rfbRef = useRef<any>(null)
 
   useEffect(() => {
-    if (appKind !== "VMInstance" || !vncContainerRef.current) return
+    if (appKind !== "VMInstance" || !isRunning || !vncContainerRef.current)
+      return
 
     let mounted = true
 
@@ -96,13 +118,41 @@ export function VncTab({ ad, instance }: VncTabProps) {
         rfbRef.current = null
       }
     }
-  }, [appKind, ns, vmName])
+  }, [appKind, ns, vmName, isRunning])
 
   if (appKind !== "VMInstance") {
     return (
       <div className="p-6">
         <Section>
           <p className="text-sm text-slate-500">VNC is only available for VMInstance.</p>
+        </Section>
+      </div>
+    )
+  }
+
+  if (vmLoading) {
+    return (
+      <div className="flex items-center gap-2 p-6 text-sm text-slate-500">
+        <Spinner /> Loading…
+      </div>
+    )
+  }
+
+  if (!isRunning) {
+    return (
+      <div className="p-6">
+        <Section
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Monitor className="size-4 text-slate-500" /> VNC Console
+            </span>
+          }
+        >
+          <p className="text-sm text-slate-500">
+            The virtual machine is not running
+            {powerStatus ? ` (status: ${powerStatus})` : ""}. Start it to use
+            the VNC console.
+          </p>
         </Section>
       </div>
     )
