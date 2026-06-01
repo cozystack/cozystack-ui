@@ -11,6 +11,10 @@ interface VncTabProps {
 export function VncTab({ ad, instance }: VncTabProps) {
   const ns = instance.metadata.namespace
   const appKind = ad.spec?.application.kind
+  // The cozystack app name (e.g. "demo-vm") maps to the KubeVirt
+  // VirtualMachineInstance named "<release.prefix><name>"
+  // (e.g. "vm-instance-demo-vm"), which is what the subresource path needs.
+  const vmName = `${ad.spec?.release?.prefix ?? ""}${instance.metadata.name}`
   const [error, setError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(true)
   const [connected, setConnected] = useState(false)
@@ -24,7 +28,7 @@ export function VncTab({ ad, instance }: VncTabProps) {
 
     // Build WebSocket URL using current location
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-    const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${instance.metadata.name}/vnc`
+    const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${vmName}/vnc`
 
     // Dynamically import RFB
     import("@novnc/novnc/lib/rfb").then((module) => {
@@ -92,7 +96,7 @@ export function VncTab({ ad, instance }: VncTabProps) {
         rfbRef.current = null
       }
     }
-  }, [appKind, ns, instance.metadata.name])
+  }, [appKind, ns, vmName])
 
   if (appKind !== "VMInstance") {
     return (
@@ -124,7 +128,7 @@ export function VncTab({ ad, instance }: VncTabProps) {
       setError(null)
 
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-      const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${instance.metadata.name}/vnc`
+      const wsUrl = `${wsProtocol}//${window.location.host}/apis/subresources.kubevirt.io/v1/namespaces/${ns}/virtualmachineinstances/${vmName}/vnc`
 
       import("@novnc/novnc/lib/rfb").then((module) => {
         if (!vncContainerRef.current) return
