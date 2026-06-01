@@ -161,15 +161,22 @@ describe("ClusterUsagePage", () => {
     ).toBeInTheDocument()
   })
 
-  it("omits the Used line everywhere when metrics-server is not registered", async () => {
+  it("shows only em-dashes in the aggregate Used column when metrics-server is not registered", async () => {
     const client = makeClient({
       nodes: nodesListFixture,
       pods: podsListFixture,
       groups: groupsWithoutMetrics,
     })
-    renderWithK8sProvider(<ClusterUsagePage />, { client })
-    // Wait for the page to settle by waiting on an aggregate-card label.
+    const { container } = renderWithK8sProvider(<ClusterUsagePage />, { client })
+    // Wait for the page to settle by waiting on an aggregate label.
     await screen.findAllByText(/allocatable/i)
-    expect(screen.queryByText(/used/i)).toBeNull()
+    // The aggregate resources table always renders a Used column; without
+    // metrics every Used cell (last column of each resource row) is "—".
+    const rows = container.querySelectorAll("[data-resource-row]")
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      const cells = row.querySelectorAll("td")
+      expect(cells[cells.length - 1].textContent).toBe("—")
+    }
   })
 })
