@@ -98,6 +98,10 @@ export function useTenantContext(): TenantContextValue {
   return ctx
 }
 
+export function useOptionalTenantContext(): TenantContextValue | null {
+  return useContext(TenantContext)
+}
+
 /**
  * Pull the display name of a TenantNamespace (no `tenant-` prefix).
  */

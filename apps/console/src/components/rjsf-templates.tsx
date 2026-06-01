@@ -11,7 +11,6 @@ import { CustomObjectFieldTemplate } from "./CustomObjectFieldTemplate.tsx"
 import { SourceWidget } from "./SourceWidget.tsx"
 import { StorageClassWidget } from "./StorageClassWidget.tsx"
 import { AdditionalPropertiesWidget } from "./AdditionalPropertiesWidget.tsx"
-import { VMDiskWidget } from "./VMDiskWidget.tsx"
 import { BackupClassWidget } from "./BackupClassWidget.tsx"
 import { SensitiveStringWidget } from "./SensitiveStringWidget.tsx"
 
@@ -93,7 +92,6 @@ export const customWidgets = {
   SourceWidget: SourceWidget,
   StorageClassWidget: StorageClassWidget,
   AdditionalPropertiesWidget: AdditionalPropertiesWidget,
-  VMDiskWidget: VMDiskWidget,
   BackupClassWidget: BackupClassWidget,
   SensitiveStringWidget: SensitiveStringWidget,
 }

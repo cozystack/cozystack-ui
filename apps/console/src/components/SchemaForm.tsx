@@ -3,6 +3,8 @@ import Form from "@rjsf/core"
 import validator from "@rjsf/validator-ajv8"
 import { getDefaultFormState } from "@rjsf/utils"
 import type { RJSFSchema, UiSchema, TemplatesType } from "@rjsf/utils"
+import { useK8sList } from "@cozystack/k8s-client"
+import { APPS_GROUP, APPS_VERSION } from "@cozystack/types"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
 import { addSensitiveStringWidgets } from "../lib/sensitive-fields.ts"
 import {
@@ -14,7 +16,15 @@ import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
 import { AdditionalPropertiesField } from "./AdditionalPropertiesField.tsx"
 import { ResourceQuotasField } from "./ResourceQuotasField.tsx"
 import { SourceField } from "./SourceField.tsx"
+import { useOptionalTenantContext } from "../lib/tenant-context.tsx"
 import "./schema-form.css"
+
+interface VMDiskRef {
+  apiVersion: string
+  kind: string
+  metadata: { name: string; namespace: string }
+  spec: { storage: string; storageClass?: string }
+}
 
 /**
  * Recursively find all storageClass fields in schema and add widget to uiSchema
@@ -116,45 +126,82 @@ function addAdditionalPropertiesWidgets(schema: RJSFSchema, uiSchema: UiSchema =
   return result
 }
 
-/**
- * Add VMDiskWidget to the "name" field inside "disks" array items
- */
-function addVMDiskWidgets(schema: RJSFSchema, uiSchema: UiSchema = {}): UiSchema {
-  if (!schema || typeof schema !== "object") return uiSchema
+// Adds an `enum` (and a matching `default` when the field is required) to
+// `disks[].name` so RJSF's getDefaultFormState seeds the first disk name on
+// "+ add". Without the default, an item gets created without `name` and a
+// quick Form → YAML toggle serializes it as `{}` or drops it entirely.
+function injectDiskEnum(schema: RJSFSchema, diskNames: readonly string[]): RJSFSchema {
+  if (!schema || typeof schema !== "object" || diskNames.length === 0) return schema
 
-  const properties = (schema as any).properties
-  if (!properties || typeof properties !== "object") return uiSchema
-
-  const result = { ...uiSchema }
-
-  for (const [key, value] of Object.entries(properties)) {
-    if (key === "disks" && typeof value === "object" && value !== null) {
-      const fieldSchema = value as any
-      // Check if this is an array of objects with a "name" property
+  const visit = (node: any): any => {
+    if (!node || typeof node !== "object") return node
+    const props = node.properties
+    if (!props || typeof props !== "object") return node
+    const nextProps: Record<string, any> = { ...props }
+    let changed = false
+    for (const [key, value] of Object.entries(props)) {
       if (
-        fieldSchema.type === "array" &&
-        fieldSchema.items?.type === "object" &&
-        fieldSchema.items?.properties?.name
+        key === "disks" &&
+        value &&
+        typeof value === "object" &&
+        (value as any).type === "array" &&
+        (value as any).items?.type === "object" &&
+        (value as any).items?.properties?.name?.type === "string"
       ) {
-        // Add VMDiskWidget to the "name" field inside array items
-        result[key] = {
-          ...result[key],
+        const disksField = value as any
+        const itemRequired: string[] = Array.isArray(disksField.items.required)
+          ? disksField.items.required
+          : []
+        const nameRequired = itemRequired.includes("name")
+        nextProps[key] = {
+          ...disksField,
           items: {
-            ...(result[key] as any)?.items,
-            name: {
-              ...((result[key] as any)?.items?.name || {}),
-              "ui:widget": "VMDiskWidget",
+            ...disksField.items,
+            properties: {
+              ...disksField.items.properties,
+              name: {
+                ...disksField.items.properties.name,
+                enum: [...diskNames],
+                ...(nameRequired ? { default: diskNames[0] } : {}),
+              },
             },
           },
         }
+        changed = true
+        continue
       }
-    } else if (typeof value === "object" && (value as any).properties) {
-      // Recursively process nested objects
-      result[key] = addVMDiskWidgets(value as RJSFSchema, result[key] as UiSchema)
+      const visited = visit(value)
+      if (visited !== value) {
+        nextProps[key] = visited
+        changed = true
+      }
     }
+    return changed ? { ...node, properties: nextProps } : node
   }
 
-  return result
+  return visit(schema) as RJSFSchema
+}
+
+function schemaHasDiskField(schema: unknown): boolean {
+  if (!schema || typeof schema !== "object") return false
+  const props = (schema as any).properties
+  if (!props || typeof props !== "object") return false
+  for (const [key, value] of Object.entries(props)) {
+    if (
+      key === "disks" &&
+      value &&
+      typeof value === "object" &&
+      (value as any).type === "array" &&
+      (value as any).items?.type === "object" &&
+      (value as any).items?.properties?.name?.type === "string"
+    ) {
+      return true
+    }
+    if (value && typeof value === "object" && (value as any).properties) {
+      if (schemaHasDiskField(value)) return true
+    }
+  }
+  return false
 }
 
 /**
@@ -267,31 +314,84 @@ interface SchemaFormProps {
   immutableMode?: "enforce" | "off"
 }
 
-export function SchemaForm({
-  openAPISchema,
+export function SchemaForm(props: SchemaFormProps) {
+  const parsedSchema = useMemo<unknown>(() => {
+    try {
+      return JSON.parse(props.openAPISchema)
+    } catch {
+      return {}
+    }
+  }, [props.openAPISchema])
+
+  const sanitizedSchema = useMemo<RJSFSchema>(
+    () => sanitizeSchema(parsedSchema) as RJSFSchema,
+    [parsedSchema],
+  )
+
+  const hasDiskField = useMemo(
+    () => schemaHasDiskField(sanitizedSchema),
+    [sanitizedSchema],
+  )
+
+  // VMDisk lookup is gated behind a dedicated subcomponent so the K8s and
+  // tenant providers are only required when the schema actually has a
+  // disks[] field. Isolated SchemaForm tests use schemas without disks and
+  // therefore never reach the K8s hook path.
+  if (hasDiskField) {
+    return (
+      <SchemaFormWithDisks
+        {...props}
+        parsedSchema={parsedSchema}
+        sanitizedSchema={sanitizedSchema}
+      />
+    )
+  }
+  return (
+    <SchemaFormInner
+      {...props}
+      parsedSchema={parsedSchema}
+      schema={sanitizedSchema}
+    />
+  )
+}
+
+function SchemaFormWithDisks(
+  props: SchemaFormProps & { parsedSchema: unknown; sanitizedSchema: RJSFSchema },
+) {
+  const tenantCtx = useOptionalTenantContext()
+  const tenantNamespace = tenantCtx?.tenantNamespace ?? null
+  const { data: diskList } = useK8sList<VMDiskRef>(
+    {
+      apiGroup: APPS_GROUP,
+      apiVersion: APPS_VERSION,
+      plural: "vmdisks",
+      namespace: tenantNamespace ?? undefined,
+    },
+    { enabled: !!tenantNamespace },
+  )
+
+  const diskNames = useMemo(
+    () => (diskList?.items ?? []).map((d) => d.metadata.name),
+    [diskList],
+  )
+
+  const schema = useMemo<RJSFSchema>(
+    () => injectDiskEnum(props.sanitizedSchema, diskNames),
+    [props.sanitizedSchema, diskNames],
+  )
+
+  return <SchemaFormInner {...props} schema={schema} />
+}
+
+function SchemaFormInner({
   keysOrder,
   formData,
   onChange,
   children,
   immutableMode,
-}: SchemaFormProps) {
-  // Parse the raw schema once, then derive the sanitised RJSFSchema and the
-  // immutable-path set from it. We keep the raw object around so we don't
-  // re-parse the same string twice on every render. The contract is "same
-  // openAPISchema string ⇒ same parsedSchema reference"; the dependent
-  // memos rely on that identity to avoid recomputation.
-  const parsedSchema = useMemo<unknown>(() => {
-    try {
-      return JSON.parse(openAPISchema)
-    } catch {
-      return {}
-    }
-  }, [openAPISchema])
-
-  const schema = useMemo<RJSFSchema>(
-    () => sanitizeSchema(parsedSchema) as RJSFSchema,
-    [parsedSchema],
-  )
+  parsedSchema,
+  schema,
+}: SchemaFormProps & { parsedSchema: unknown; schema: RJSFSchema }) {
 
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -334,11 +434,8 @@ export function SchemaForm({
     // Automatically add BackupClassWidget for all backupClassName fields
     const withBackupClass = addBackupClassWidgets(schema, withStorageClass)
 
-    // Automatically add VMDiskWidget for disks[].name field
-    const withVMDisk = addVMDiskWidgets(schema, withBackupClass)
-
     // Automatically add AdditionalPropertiesField for fields with additionalProperties schema
-    const withAdditionalProps = addAdditionalPropertiesWidgets(schema, withVMDisk)
+    const withAdditionalProps = addAdditionalPropertiesWidgets(schema, withBackupClass)
 
     // Mask credential-shaped string fields (access/secret keys, passwords, tokens).
     const withSensitive = addSensitiveStringWidgets(schema, withAdditionalProps)
