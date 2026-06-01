@@ -22,6 +22,14 @@ export function BackupClassWidget(props: WidgetProps) {
   const currentValue = typeof value === "string" ? value : ""
   const hasCurrentInList = backupClasses.some((bc) => bc.metadata.name === currentValue)
 
+  const placeholder = isLoading
+    ? "Loading..."
+    : backupClasses.length === 0
+      ? "No backup classes available"
+      : required
+        ? "Select a backup class..."
+        : "-- None --"
+
   return (
     <select
       value={currentValue}
@@ -30,7 +38,12 @@ export function BackupClassWidget(props: WidgetProps) {
       required={required}
       className="w-full rounded-lg border border-slate-300 bg-white pl-3 pr-8 py-2 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {!required && <option value="">-- None --</option>}
+      {/* Always render an explicit placeholder so a value-less required select
+          shows it instead of silently displaying the first class. Disabled when
+          required so the empty state can be displayed but never picked. */}
+      <option value="" disabled={required}>
+        {placeholder}
+      </option>
       {/* Render the parent's value as a stable option even when the list is
           still loading or the value isn't present in the loaded results. This
           keeps the controlled <select> from losing the parent's selection on
@@ -43,11 +56,6 @@ export function BackupClassWidget(props: WidgetProps) {
           {bc.metadata.name}
         </option>
       ))}
-      {!isLoading && backupClasses.length === 0 && !currentValue && (
-        <option value="" disabled>
-          No backup classes available
-        </option>
-      )}
     </select>
   )
 }
