@@ -83,19 +83,22 @@ describe("ClusterUsagePage", () => {
     expect(screen.getByText(/loading/i)).toBeInTheDocument()
   })
 
-  it("renders both panels on a healthy cluster with metrics", async () => {
+  it("renders the aggregate resources table on a healthy cluster with metrics", async () => {
     const client = makeClient({
       nodes: nodesListFixture,
       pods: podsListFixture,
       metrics: nodeMetricsListFixture,
       groups: groupsWithMetrics,
     })
-    renderWithK8sProvider(<ClusterUsagePage />, { client })
+    const { container } = renderWithK8sProvider(<ClusterUsagePage />, { client })
     expect(await screen.findByText("Cluster Usage")).toBeInTheDocument()
-    // "CPU" appears in both the aggregate card and the table column header,
-    // so assert via the aggregate-specific "Allocatable" label instead.
     expect(await screen.findAllByText(/allocatable/i)).not.toHaveLength(0)
-    expect(await screen.findByText("worker-gpu-1")).toBeInTheDocument()
+    // The per-node table moved to its own Nodes page; this page now shows
+    // only the cluster-wide resources table.
+    await waitFor(() =>
+      expect(container.querySelector('[data-resource-row="CPU"]')).not.toBeNull(),
+    )
+    expect(screen.queryByText("worker-gpu-1")).toBeNull()
   })
 
   it("renders the empty state when no nodes exist", async () => {

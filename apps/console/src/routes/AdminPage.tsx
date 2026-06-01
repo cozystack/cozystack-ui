@@ -3,6 +3,7 @@ import { Section, Spinner } from "@cozystack/ui"
 import { useAdminAccess } from "./sidebar-sections.tsx"
 import { ClusterUsagePage } from "./ClusterUsagePage.tsx"
 import { ClusterUsageResourcePage } from "./ClusterUsageResourcePage.tsx"
+import { NodesPage } from "./NodesPage.tsx"
 import { BackupClassListPage } from "./BackupClassListPage.tsx"
 import { BackupClassCreatePage } from "./BackupClassCreatePage.tsx"
 import { BackupClassDetailPage } from "./BackupClassDetailPage.tsx"
@@ -59,6 +60,7 @@ export function AdminPage() {
       />
       <Route path="cluster-usage" element={<ClusterUsagePage />} />
       <Route path="cluster-usage/r/*" element={<ClusterUsageResourcePage />} />
+      <Route path="nodes" element={<NodesPage />} />
       <Route element={<BackupClassAdminGuard />}>
         <Route path="backups/backupclasses" element={<BackupClassListPage />} />
         <Route path="backups/backupclasses/create" element={<BackupClassCreatePage />} />

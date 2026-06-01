@@ -2,7 +2,6 @@ import { Link } from "react-router"
 import { Section, Spinner } from "@cozystack/ui"
 import { useClusterUsageData } from "../hooks/useClusterUsageData.tsx"
 import { ClusterUsageAggregates } from "../components/cluster-usage/ClusterUsageAggregates.tsx"
-import { ClusterUsageTable } from "../components/cluster-usage/ClusterUsageTable.tsx"
 
 /**
  * Administration → Cluster Usage. Single cluster-scoped page that
@@ -20,7 +19,6 @@ import { ClusterUsageTable } from "../components/cluster-usage/ClusterUsageTable
 export function ClusterUsagePage() {
   const {
     nodes,
-    perNode,
     aggregates,
     nodeSummary,
     isLoading,
@@ -28,7 +26,6 @@ export function ClusterUsagePage() {
     errorStatus,
     podsUnavailable,
   } = useClusterUsageData()
-  const extendedKeys = Object.keys(aggregates.extended).sort()
 
   return (
     <div className="space-y-6 p-6">
@@ -67,21 +64,11 @@ export function ClusterUsagePage() {
           <p className="py-6 text-center text-sm text-slate-500">No nodes found.</p>
         </Section>
       ) : (
-        <>
-          <ClusterUsageAggregates
-            aggregates={aggregates}
-            nodeSummary={nodeSummary}
-            podsUnavailable={podsUnavailable}
-          />
-          <div>
-            <h2 className="mb-3 text-sm font-medium text-slate-700">Nodes</h2>
-            <ClusterUsageTable
-              rows={perNode}
-              extendedKeys={extendedKeys}
-              podsUnavailable={podsUnavailable}
-            />
-          </div>
-        </>
+        <ClusterUsageAggregates
+          aggregates={aggregates}
+          nodeSummary={nodeSummary}
+          podsUnavailable={podsUnavailable}
+        />
       )}
     </div>
   )

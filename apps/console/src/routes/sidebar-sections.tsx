@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Layers,
   Network,
+  Server,
   ToyBrick,
   Users,
   type LucideIcon,
@@ -169,8 +170,11 @@ export function useAdminSidebarSections(): SidebarSection[] {
     const sections: SidebarSection[] = []
     if (canClusterUsage) {
       sections.push({
-        title: "Cluster",
-        items: [{ label: "Cluster Usage", to: "/admin/cluster-usage", icon: Gauge }],
+        title: "Resources",
+        items: [
+          { label: "Cluster Usage", to: "/admin/cluster-usage", icon: Gauge },
+          { label: "Nodes", to: "/admin/nodes", icon: Server },
+        ],
       })
     }
     if (canBackupClasses) {
