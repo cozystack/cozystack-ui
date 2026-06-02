@@ -96,10 +96,8 @@ schema). The pipeline in `apps/console/src/components/SchemaForm.tsx`:
 2. `keysOrderToUiSchema` reads `spec.dashboard.keysOrder` and emits per-level
    `ui:order` arrays.
 3. A chain of `addXxxWidgets(schema, uiSchema)` walks the schema and binds
-   widgets by **field name** convention:
-   - `storageClass` → `StorageClassWidget`
-   - `backupClassName` → `BackupClassWidget`
-   - `disks[].name` → `VMDiskWidget`
+   widgets:
+   - any field carrying the `x-cozystack-options` schema keyword → `DynamicOptionsWidget`, a runtime dropdown populated from the cluster's `Option` resource (`core.cozystack.io`) keyed by the keyword's `source`; `addDynamicOptionWidgets` (`lib/dynamic-options.ts`) recurses into `properties`, array `items` and `additionalProperties`, and replaces the former field-name-bound `StorageClassWidget` / `BackupClassWidget` / `VMDiskWidget`.
    - object with `additionalProperties: <schema>` → `AdditionalPropertiesField`
    - credential-shaped fields (`password`, `*token`, `*accessKey`, …) →
      `SensitiveStringWidget` — see `lib/sensitive-fields.ts` and its tests for
