@@ -72,6 +72,58 @@ describe("addDynamicOptionWidgets", () => {
     expect(ui.planRef?.name?.["ui:widget"]).toBe("DynamicOptionsWidget")
   })
 
+  it("recurses into array items (vm-instance disks[].name)", () => {
+    const schema: RJSFSchema = {
+      type: "object",
+      properties: {
+        disks: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: {
+                type: "string",
+                "x-cozystack-options": { source: "vmdisk" },
+              } as RJSFSchema,
+              size: { type: "string" },
+            },
+          },
+        } as RJSFSchema,
+      },
+    }
+
+    const ui = addDynamicOptionWidgets(schema)
+
+    expect(ui.disks?.items?.name?.["ui:widget"]).toBe("DynamicOptionsWidget")
+    expect(ui.disks?.items?.size?.["ui:widget"]).toBeUndefined()
+  })
+
+  it("recurses into additionalProperties maps (kubernetes nodeGroups.*.instanceType)", () => {
+    const schema: RJSFSchema = {
+      type: "object",
+      properties: {
+        nodeGroups: {
+          type: "object",
+          additionalProperties: {
+            type: "object",
+            properties: {
+              instanceType: {
+                type: "string",
+                "x-cozystack-options": { source: "instancetype" },
+              } as RJSFSchema,
+            },
+          },
+        } as RJSFSchema,
+      },
+    }
+
+    const ui = addDynamicOptionWidgets(schema)
+
+    expect(ui.nodeGroups?.additionalProperties?.instanceType?.["ui:widget"]).toBe(
+      "DynamicOptionsWidget",
+    )
+  })
+
   it("preserves an existing uiSchema while adding widgets", () => {
     const schema: RJSFSchema = {
       type: "object",
