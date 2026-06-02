@@ -28,9 +28,10 @@ export function BackupJobCreatePage() {
   // stays on the client-side enumMap below, because it depends on the chosen
   // kind — a context the Option contract cannot express.
 
-  // Resolve instances for the selected application kind.
-  // Mirrors BackupRestoreJobCreatePage: kind dropdown is gated to
-  // apps.cozystack.io (the only apiGroup ApplicationDefinitions cover).
+  // Resolve instances for the selected application kind (used for the
+  // applicationRef.name enum below). The kind is an appkind dropdown regardless
+  // of apiGroup; only the name enum is gated to apps.cozystack.io — the one
+  // apiGroup ApplicationDefinitions cover.
   // Strict undefined check so an explicit empty string from the user means
   // "no group" — clearing the field opts out of the cozystack defaults.
   const selectedKind = formData?.applicationRef?.kind

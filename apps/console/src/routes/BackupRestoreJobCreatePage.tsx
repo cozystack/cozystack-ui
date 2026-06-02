@@ -70,8 +70,8 @@ export function BackupRestoreJobCreatePage() {
     // targetApplicationRef.name depends on the selected kind, so it cannot be
     // served by the Option contract — keep it on the client-side enumMap. Only
     // fill it when the cozystack apiGroup matches (ApplicationDefinitions cover
-    // apps.cozystack.io only — for any other apiGroup the user is on free-text
-    // fallback).
+    // apps.cozystack.io only — for any other apiGroup the name field has no enum
+    // and stays free-text). The kind itself is always an appkind dropdown.
     if (selectedApiGroup === "apps.cozystack.io" && selectedKind && instances.length > 0) {
       enumMap["targetApplicationRef.name"] = instances
     }
