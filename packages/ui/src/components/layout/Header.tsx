@@ -54,7 +54,7 @@ export function Header({
     >
       <div className="flex items-center gap-6">
         <Link to="/" className="flex items-center gap-2">
-          <Logo className="h-11 w-auto" svgContent={logoSvg} text={logoText} />
+          <Logo className="h-9 w-auto" svgContent={logoSvg} text={logoText} />
           {version && (
             <span className="text-xs font-medium text-slate-400">{version}</span>
           )}
