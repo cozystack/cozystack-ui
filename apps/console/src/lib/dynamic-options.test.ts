@@ -124,6 +124,34 @@ describe("addDynamicOptionWidgets", () => {
     )
   })
 
+  it("pins the current 'oneOf/anyOf/allOf branches are not walked' limitation", () => {
+    // FIXME: extend the walker to recurse into oneOf/anyOf/allOf. Once that
+    // lands, flip this to expect the inner field to bind DynamicOptionsWidget.
+    // Matches the same intentional gap pinned in sensitive-fields.test.ts.
+    const schema: RJSFSchema = {
+      type: "object",
+      properties: {
+        source: {
+          oneOf: [
+            {
+              type: "object",
+              properties: {
+                storageClass: {
+                  type: "string",
+                  "x-cozystack-options": { source: "storageclass" },
+                } as RJSFSchema,
+              },
+            },
+          ],
+        },
+      },
+    }
+
+    const ui = addDynamicOptionWidgets(schema)
+
+    expect(ui.source).toBeUndefined()
+  })
+
   it("preserves an existing uiSchema while adding widgets", () => {
     const schema: RJSFSchema = {
       type: "object",
