@@ -98,6 +98,37 @@ describe("DynamicOptionsWidget", () => {
     expect(onChange).toHaveBeenCalledTimes(1)
   })
 
+  it("does not auto-commit when no item is marked default (preserves the VMDisk invariant)", async () => {
+    // The old VMDiskWidget deliberately never auto-selected the first disk —
+    // auto-committing dropped the user's choice on a fast submit. The generic
+    // widget only auto-selects when the server marks item.default, so a
+    // default-less source (e.g. vmdisk) must stay untouched on load.
+    const onChange = vi.fn()
+    renderWithK8sProvider(
+      <DynamicOptionsWidget {...makeProps({ onChange }, "vmdisk")} />,
+      { client: clientWith(list(option("vmdisk", [{ value: "disk-a" }, { value: "disk-b" }]))) },
+    )
+
+    await screen.findByRole("option", { name: /disk-a/ })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("lists the Option resource namespaced to the active tenant", async () => {
+    // The Option CRD is namespaced (tenant-scoped); querying it cluster-wide
+    // would return nothing. Pin the namespaced LIST.
+    const client = clientWith(list(option("storageclass", [{ value: "fast" }])))
+    renderWithK8sProvider(<DynamicOptionsWidget {...makeProps()} />, { client })
+
+    await screen.findByRole("option", { name: /fast/ })
+    expect(client.list).toHaveBeenCalledWith(
+      "core.cozystack.io",
+      "v1alpha1",
+      "options",
+      "tenant-root",
+      expect.anything(),
+    )
+  })
+
   it("shows an explicit placeholder instead of the first option when required and empty", async () => {
     renderWithK8sProvider(
       // No default item, so the auto-default effect stays idle and the
