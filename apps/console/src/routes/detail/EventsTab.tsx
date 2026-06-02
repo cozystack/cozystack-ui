@@ -5,6 +5,7 @@ import type {
   ApplicationInstance,
 } from "@cozystack/types"
 import { useTenantContext } from "../../lib/tenant-context.tsx"
+import { releasePrefix } from "../../lib/app-definitions.ts"
 import { formatAge } from "../../lib/status.ts"
 
 interface EventsTabProps {
@@ -58,7 +59,7 @@ interface K8sPVC {
 export function EventsTab({ ad, instance }: EventsTabProps) {
   const { tenantNamespace } = useTenantContext()
 
-  const helmReleaseName = (ad.spec?.release?.prefix ?? "") + instance.metadata.name
+  const helmReleaseName = releasePrefix(ad) + instance.metadata.name
 
   const appLabelSelector = [
     `apps.cozystack.io/application.name=${instance.metadata.name}`,
