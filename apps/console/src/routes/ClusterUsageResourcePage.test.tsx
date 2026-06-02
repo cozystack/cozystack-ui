@@ -137,7 +137,7 @@ describe("ClusterUsageResourcePage", () => {
     renderResource(client, GPU)
 
     const link = await screen.findByRole("link", { name: "demo-vm" })
-    expect(link).toHaveAttribute("href", "/console/vminstances/demo-vm")
+    expect(link).toHaveAttribute("href", "/console/vminstances/demo-vm/workloads")
   })
 
   it("does not link a consumer whose kind is not a known application", async () => {

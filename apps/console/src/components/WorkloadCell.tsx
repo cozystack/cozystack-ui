@@ -15,7 +15,7 @@ interface WorkloadCellProps {
 
 /**
  * Renders a consuming workload (the owning application) as a deep-link to its
- * Console page, with the kind shown as a subtitle. The link is only active for
+ * Console Workloads tab, with the kind shown as a subtitle. The link is only active for
  * real app instances: the kind must resolve to a plural via ApplicationDefinitions
  * and the workload must live in a tenant namespace (so the Console tenant
  * context can be switched on click). Shared by every per-resource drill-down.
@@ -34,7 +34,7 @@ export function WorkloadCell({ namespace, kind, name }: WorkloadCellProps) {
   const tenant = namespace.startsWith(TENANT_NAMESPACE_PREFIX)
     ? namespace.slice(TENANT_NAMESPACE_PREFIX.length)
     : null
-  const href = plural && tenant ? `/console/${plural}/${name}` : null
+  const href = plural && tenant ? `/console/${plural}/${name}/workloads` : null
 
   return (
     <>
