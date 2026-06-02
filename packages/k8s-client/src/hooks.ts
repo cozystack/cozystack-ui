@@ -180,13 +180,30 @@ export function useK8sDelete(ref: ResourceRef) {
 
 /**
  * Mutation hook for calling a resource subresource action (e.g. KubeVirt
- * virtualmachines/{name}/start|stop|restart). On success it invalidates the
- * GET and LIST caches for the referenced resource so status (e.g.
+ * virtualmachines/{name}/start|stop|restart). On success it invalidates every
+ * GET and LIST cache for the target resource so its status (e.g.
  * printableStatus) refetches.
+ *
+ * The action endpoint and the resource whose status you want to refresh can
+ * live under different API groups — KubeVirt serves the actions under
+ * `subresources.kubevirt.io` but the VirtualMachine (with its status) under
+ * `kubevirt.io`. Pass `options.invalidate` with the target resource's ref so
+ * the invalidation hits the query that holds the status; without it the keys
+ * never match and the refresh does nothing.
+ *
+ * Invalidation keys off the resource prefix `["k8s", group, version, plural,
+ * namespace]`, which React Query prefix-matches against both the by-name GET
+ * key and any field/label-selected LIST key — so a status read via a
+ * `metadata.name` field-selected `useK8sList` (the watch-based, no-poll path)
+ * is refreshed too.
  */
-export function useK8sSubresource(ref: ResourceRef & { name: string }) {
+export function useK8sSubresource(
+  ref: ResourceRef & { name: string },
+  options?: { invalidate?: ResourceRef },
+) {
   const client = useK8sClient()
   const queryClient = useQueryClient()
+  const invalidateRef = options?.invalidate ?? ref
 
   return useMutation({
     mutationFn: ({
@@ -209,10 +226,18 @@ export function useK8sSubresource(ref: ResourceRef & { name: string }) {
         method,
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: k8sGetKey(ref) })
-      queryClient.invalidateQueries({ queryKey: k8sListKey(ref) })
+      queryClient.invalidateQueries({ queryKey: k8sResourceKey(invalidateRef) })
     },
   })
+}
+
+/**
+ * Prefix shared by every GET and LIST key for a resource in a namespace.
+ * React Query prefix-matches on this, so invalidating it refreshes the by-name
+ * GET and every selector-scoped LIST of that resource at once.
+ */
+function k8sResourceKey(ref: ResourceRef) {
+  return ["k8s", ref.apiGroup, ref.apiVersion, ref.plural, ref.namespace ?? ""] as const
 }
 
 function k8sListKey(ref: ResourceRef, labelSelector?: string, fieldSelector?: string) {
