@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { Monitor, Maximize2, Minimize2, Power, RotateCcw, Terminal } from "lucide-react"
-import { useK8sGet, type K8sResource } from "@cozystack/k8s-client"
+import { useK8sList, type K8sResource } from "@cozystack/k8s-client"
 import type { ApplicationDefinition, ApplicationInstance } from "@cozystack/types"
+import { releasePrefix } from "../../lib/app-definitions.ts"
 
 interface VncTabProps {
   ad: ApplicationDefinition
@@ -11,29 +12,32 @@ interface VncTabProps {
 export function VncTab({ ad, instance }: VncTabProps) {
   const ns = instance.metadata.namespace
   const appKind = ad.spec?.application.kind
-  // The cozystack app name (e.g. "demo-vm") maps to the KubeVirt
-  // VirtualMachine / VirtualMachineInstance named "vm-instance-<name>".
-  const vmName = `vm-instance-${instance.metadata.name}`
+  // The cozystack app name (e.g. "demo-vm") maps to the KubeVirt VirtualMachine
+  // / VirtualMachineInstance named "<release.prefix><name>". releasePrefix()
+  // discovers the prefix from the ApplicationDefinition (falling back to
+  // "<singular>-") so this resolves identically to VMPowerControls — both must
+  // target the same object, so neither may hardcode the prefix.
+  const vmName = `${releasePrefix(ad)}${instance.metadata.name}`
 
   // Don't open a VNC websocket unless the VM is actually running — there is no
   // VirtualMachineInstance to attach to otherwise, and the socket would just
-  // error out. Poll the VirtualMachine power state.
-  const { data: vm, isLoading: vmLoading } = useK8sGet<
+  // error out. List the VirtualMachine by a metadata.name field-selector so the
+  // useK8sList watch layer streams power-state transitions live — no poll.
+  const { data: vmList, isLoading: vmLoading } = useK8sList<
     K8sResource<unknown, { printableStatus?: string }>
   >(
     {
       apiGroup: "kubevirt.io",
       apiVersion: "v1",
       plural: "virtualmachines",
-      name: vmName,
       namespace: ns ?? "",
     },
     {
       enabled: appKind === "VMInstance" && !!ns,
-      refetchInterval: 5000,
+      fieldSelector: `metadata.name=${vmName}`,
     },
   )
-  const powerStatus = vm?.status?.printableStatus
+  const powerStatus = vmList?.items[0]?.status?.printableStatus
   const isRunning = powerStatus === "Running"
 
   const containerRef = useRef<HTMLDivElement>(null)
