@@ -67,7 +67,12 @@ export class K8sClient {
     }
 
     if (res.status === 204) return undefined as T
-    return res.json() as Promise<T>
+    // Some endpoints (e.g. KubeVirt action subresources like
+    // virtualmachines/{name}/restart) return 2xx with an empty body;
+    // res.json() would throw "Unexpected end of JSON input" on "".
+    const text = await res.text()
+    if (!text) return undefined as T
+    return JSON.parse(text) as T
   }
 
   private buildPath(
@@ -173,6 +178,29 @@ export class K8sClient {
   ): Promise<unknown> {
     const path = this.buildPath(apiGroup, apiVersion, plural, namespace, name)
     return this.request(path, { method: "DELETE" })
+  }
+
+  /**
+   * Call a resource subresource (e.g. KubeVirt's
+   * subresources.kubevirt.io virtualmachines/{name}/start|stop|restart).
+   * Defaults to PUT, which is what the KubeVirt action subresources expect;
+   * pass an empty object as body when the subresource takes no options.
+   */
+  subresource<T>(
+    apiGroup: string,
+    apiVersion: string,
+    plural: string,
+    name: string,
+    subresource: string,
+    namespace?: string,
+    body?: unknown,
+    method: "PUT" | "POST" = "PUT",
+  ): Promise<T> {
+    const path = `${this.buildPath(apiGroup, apiVersion, plural, namespace, name)}/${subresource}`
+    return this.request<T>(path, {
+      method,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    })
   }
 
   dryRunCreate<T>(

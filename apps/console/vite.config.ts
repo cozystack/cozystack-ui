@@ -6,7 +6,8 @@ import path from "path"
 /**
  * The dev server proxies `/api` and `/apis` to `kubectl proxy --port 8001`
  * (over HTTP, not HTTPS — kubectl proxy terminates TLS locally).
- * Watch uses plain chunked-encoding streams, so no WebSocket upgrade is needed.
+ * The VNC console streams over a WebSocket, so `ws: true` is set on the
+ * proxies below to forward the upgrade to kubectl proxy.
  */
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -27,10 +28,12 @@ export default defineConfig({
       "/apis": {
         target: "http://localhost:8001",
         changeOrigin: true,
+        ws: true,
       },
       "/api": {
         target: "http://localhost:8001",
         changeOrigin: true,
+        ws: true,
       },
     },
   },

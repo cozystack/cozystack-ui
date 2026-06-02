@@ -33,6 +33,7 @@ import { IngressesTab } from "./IngressesTab.tsx"
 import { SecretsTab } from "./SecretsTab.tsx"
 import { EventsTab } from "./EventsTab.tsx"
 import { VncTab } from "./VncTab.tsx"
+import { VMPowerControls } from "./VMPowerControls.tsx"
 
 export function ApplicationDetailPage() {
   const { plural, name } = useParams<{ plural: string; name: string }>()
@@ -155,6 +156,9 @@ export function ApplicationDetailPage() {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
+            {kind === "VMInstance" && (
+              <VMPowerControls ad={ad} instance={instance} />
+            )}
             <Link to={`/console/${plural}/${name}/edit`}>
               <Button variant="outline" size="sm">
                 <Edit className="size-3.5" /> Edit

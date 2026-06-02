@@ -20,6 +20,7 @@ export {
   useK8sCreate,
   useK8sUpdate,
   useK8sDelete,
+  useK8sSubresource,
 } from "./hooks.ts"
 export type { ResourceRef } from "./hooks.ts"
 
