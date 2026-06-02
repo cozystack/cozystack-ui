@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest"
 import { screen, within, waitFor } from "@testing-library/react"
-import { K8sClient, type K8sList } from "@cozystack/k8s-client"
+import { K8sClient, K8sApiError, type K8sList } from "@cozystack/k8s-client"
 import { ClusterStorageSection } from "./ClusterStorageSection.tsx"
 import { renderWithK8sProvider } from "../../test-utils/render.tsx"
 
@@ -25,6 +25,12 @@ function makeClient(pvcs: unknown[]): K8sClient {
       items: plural === "persistentvolumeclaims" ? pvcs : [],
     } as K8sList<unknown>
   })
+  return client
+}
+
+function makeFailingClient(error: Error): K8sClient {
+  const client = new K8sClient()
+  vi.spyOn(client, "list").mockRejectedValue(error)
   return client
 }
 
@@ -54,6 +60,24 @@ describe("ClusterStorageSection", () => {
     renderWithK8sProvider(<ClusterStorageSection />, { client })
     expect(
       await screen.findByText(/no persistent volume claims found/i),
+    ).toBeInTheDocument()
+  })
+
+  it("shows a permission notice when the PVC list is forbidden", async () => {
+    // A 403 must not be silently rendered as an empty "no PVCs found" state.
+    const client = makeFailingClient(new K8sApiError(403, { message: "forbidden" }))
+    renderWithK8sProvider(<ClusterStorageSection />, { client })
+    expect(
+      await screen.findByText(/you do not have permission to view persistent volume claims/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/no persistent volume claims found/i)).not.toBeInTheDocument()
+  })
+
+  it("shows a failure notice when the PVC list errors", async () => {
+    const client = makeFailingClient(new K8sApiError(500, { message: "boom" }))
+    renderWithK8sProvider(<ClusterStorageSection />, { client })
+    expect(
+      await screen.findByText(/failed to load persistent volume claims/i),
     ).toBeInTheDocument()
   })
 })

@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Link } from "react-router"
 import { Section, Spinner } from "@cozystack/ui"
-import { useK8sList } from "@cozystack/k8s-client"
+import { useK8sList, K8sApiError } from "@cozystack/k8s-client"
 import { parseQuantity, humanizeBytes } from "../../lib/k8s-quantity.ts"
 import { TENANT_NAMESPACE_PREFIX } from "../../lib/constants.ts"
 import type { Pvc } from "../../lib/cluster-usage/types.ts"
@@ -24,7 +24,7 @@ const NO_CLASS = "(no class)"
  * per-class drill-down of the consuming workloads.
  */
 export function ClusterStorageSection() {
-  const { data, isLoading } = useK8sList<Pvc>({
+  const { data, isLoading, error } = useK8sList<Pvc>({
     apiGroup: "",
     apiVersion: "v1",
     plural: "persistentvolumeclaims",
@@ -58,6 +58,19 @@ export function ClusterStorageSection() {
     )
   }
 
+  if (error) {
+    const forbidden = error instanceof K8sApiError && error.status === 403
+    return (
+      <Section>
+        <p className="px-2 py-4 text-sm text-red-700">
+          {forbidden
+            ? "You do not have permission to view persistent volume claims."
+            : `Failed to load persistent volume claims: ${error.message}`}
+        </p>
+      </Section>
+    )
+  }
+
   if (rows.length === 0) {
     return (
       <Section>
@@ -71,40 +84,40 @@ export function ClusterStorageSection() {
   return (
     <Section>
       <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left">
-              <th className="px-3 py-2 font-medium text-slate-600">Storage Class</th>
-              <th className="px-3 py-2 text-right font-medium text-slate-600">PVCs</th>
-              <th className="px-3 py-2 text-right font-medium text-slate-600">Requested</th>
-              <th className="px-3 py-2 text-right font-medium text-slate-600">Bound</th>
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50 text-left">
+            <th className="px-3 py-2 font-medium text-slate-600">Storage Class</th>
+            <th className="px-3 py-2 text-right font-medium text-slate-600">PVCs</th>
+            <th className="px-3 py-2 text-right font-medium text-slate-600">Requested</th>
+            <th className="px-3 py-2 text-right font-medium text-slate-600">Bound</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((r) => (
+            <tr key={r.storageClass} data-storageclass-row={r.storageClass} className="hover:bg-slate-50">
+              <td className="px-3 py-2">
+                {r.storageClass === NO_CLASS ? (
+                  <span className="font-medium text-slate-700">{r.storageClass}</span>
+                ) : (
+                  <Link
+                    to={`/admin/capacity/cluster/sc/${r.storageClass}`}
+                    className="font-medium break-all text-blue-700 hover:text-blue-800 hover:underline"
+                  >
+                    {r.storageClass}
+                  </Link>
+                )}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.pvcs}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                {humanizeBytes(r.requested)}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                {r.bound > 0 ? humanizeBytes(r.bound) : "—"}
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => (
-              <tr key={r.storageClass} data-storageclass-row={r.storageClass} className="hover:bg-slate-50">
-                <td className="px-3 py-2">
-                  {r.storageClass === NO_CLASS ? (
-                    <span className="font-medium text-slate-700">{r.storageClass}</span>
-                  ) : (
-                    <Link
-                      to={`/admin/capacity/cluster/sc/${r.storageClass}`}
-                      className="font-medium break-all text-blue-700 hover:text-blue-800 hover:underline"
-                    >
-                      {r.storageClass}
-                    </Link>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-600">{r.pvcs}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                  {humanizeBytes(r.requested)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-600">
-                  {r.bound > 0 ? humanizeBytes(r.bound) : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Section>
+          ))}
+        </tbody>
+      </table>
+    </Section>
   )
 }
