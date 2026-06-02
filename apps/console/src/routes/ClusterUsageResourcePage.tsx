@@ -17,8 +17,8 @@ import type { Pod } from "../lib/cluster-usage/types.ts"
  *
  * Ownership is read from pod labels — Cozystack stamps
  * `apps.cozystack.io/application.{kind,name}` on every workload pod; we
- * fall back to the Helm `app.kubernetes.io/instance` label and finally to
- * the bare pod name so nothing is silently dropped.
+ * fall back to the Helm `app.kubernetes.io/{instance,name}` labels and finally
+ * to the bare pod name so nothing is silently dropped.
  *
  * The resource key arrives via a splat param (`cluster-usage/r/*`) so keys
  * containing slashes (every `vendor.com/model` GPU name) survive routing
