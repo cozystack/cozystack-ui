@@ -245,9 +245,9 @@ export const SchemaForm = forwardRef<SchemaFormHandle, SchemaFormProps>(function
   // Emit defaults to parent once per schema so spec is never empty on first submit.
   // Uses formDataRef (current parent state, not the initial mount snapshot) so
   // user input is preserved when the parent recomputes openAPISchema due to
-  // async sibling data (e.g. plansData/backupClassesData loading) — without
-  // this, getDefaultFormState would re-emit defaults computed from the stale
-  // initial formData and wipe whatever the user already typed.
+  // async sibling data (e.g. instancesData loading) — without this,
+  // getDefaultFormState would re-emit defaults computed from the stale initial
+  // formData and wipe whatever the user already typed.
   useEffect(() => {
     if (!schema || Object.keys(schema).length === 0) return
     if (emittedSchemaRef.current === schema) return
