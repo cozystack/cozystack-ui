@@ -5,15 +5,20 @@ import { useK8sList } from "@cozystack/k8s-client"
 import { ChevronLeft } from "lucide-react"
 import { parseQuantity, humanizeBytes, humanizeCpu } from "../lib/k8s-quantity.ts"
 import { workloadOwner } from "../lib/workload.ts"
+import { podCountsTowardRequested } from "../lib/cluster-usage/aggregate.ts"
 import { TENANT_NAMESPACE_PREFIX } from "../lib/constants.ts"
 import { WorkloadCell } from "../components/WorkloadCell.tsx"
-import type { Pod } from "../lib/cluster-usage/types.ts"
+import type { Node, Pod } from "../lib/cluster-usage/types.ts"
 
 /**
  * Admin → Resources → per-resource drill-down. Given a resource key
  * (e.g. `cpu`, `memory`, or an extended resource like
- * `nvidia.com/GH100_H200_SXM_141GB`) this lists who consumes it across the
- * whole cluster, grouped by tenant namespace and the owning application.
+ * `nvidia.com/GH100_H200_SXM_141GB`) this lists the tenant workloads requesting
+ * it, grouped by namespace and owning application. To stay consistent with the
+ * Cluster page headline it counts the same way the aggregate does — requests
+ * only (never limits), scheduled non-terminal pods only — but scoped to tenant
+ * namespaces, so the Total is the tenant portion of the cluster-wide figure
+ * (system/control-plane usage is excluded).
  *
  * Ownership is read from pod labels — Cozystack stamps
  * `apps.cozystack.io/application.{kind,name}` on every workload pod; we
@@ -41,13 +46,11 @@ function formatResource(resource: string, value: number): string {
   return value % 1 === 0 ? `${value}` : value.toFixed(2)
 }
 
-/** Sum a single resource across all of a pod's containers (requests, then limits). */
-function podResourceRequest(pod: Pod, resource: string): number {
+/** Sum a single resource's requests across a pod's containers (requests only). */
+function podRequestedResource(pod: Pod, resource: string): number {
   let total = 0
   for (const container of pod.spec?.containers ?? []) {
-    const req = container.resources?.requests?.[resource]
-    const lim = container.resources?.limits?.[resource]
-    const value = req ?? lim
+    const value = container.resources?.requests?.[resource]
     if (value !== undefined) total += parseQuantity(value)
   }
   return total
@@ -57,21 +60,24 @@ export function ClusterUsageResourcePage() {
   const params = useParams()
   const resource = params["*"] ?? ""
 
-  const {
-    data: podsList,
-    isLoading,
-    error,
-  } = useK8sList<Pod>({ apiGroup: "", apiVersion: "v1", plural: "pods" })
+  const pods = useK8sList<Pod>({ apiGroup: "", apiVersion: "v1", plural: "pods" })
+  const nodes = useK8sList<Node>({ apiGroup: "", apiVersion: "v1", plural: "nodes" })
+  const isLoading = pods.isLoading || nodes.isLoading
+  const error = pods.error ?? nodes.error
 
   const { rows, totalRequested } = useMemo(() => {
+    const knownNodes = new Set((nodes.data?.items ?? []).map((n) => n.metadata.name))
     const byKey = new Map<string, UsageRow>()
     let totalRequested = 0
-    for (const pod of podsList?.items ?? []) {
-      const requested = podResourceRequest(pod, resource)
+    for (const pod of pods.data?.items ?? []) {
+      // Match the aggregate's definition of "requested" so this breakdown
+      // reconciles with the headline number it drills into.
+      if (!podCountsTowardRequested(pod, knownNodes)) continue
+      const requested = podRequestedResource(pod, resource)
       if (requested <= 0) continue
       const namespace = pod.metadata.namespace ?? "—"
-      // Only tenant namespaces are relevant here — skip system/control-plane
-      // namespaces (cozy-*, kube-system, …) that also consume the resource.
+      // Tenant-scoped: skip system/control-plane namespaces (cozy-*, kube-system,
+      // …). The Total is therefore the tenant portion of the cluster figure.
       if (!namespace.startsWith(TENANT_NAMESPACE_PREFIX)) continue
       const { kind, name } = workloadOwner(pod.metadata.labels, pod.metadata.name)
       const key = `${namespace}/${kind}/${name}`
@@ -86,7 +92,7 @@ export function ClusterUsageResourcePage() {
     }
     const rows = [...byKey.values()].sort((a, b) => b.requested - a.requested)
     return { rows, totalRequested }
-  }, [podsList, resource])
+  }, [pods.data, nodes.data, resource])
 
   return (
     <div className="space-y-6 p-6">
@@ -101,8 +107,10 @@ export function ClusterUsageResourcePage() {
           {resource}
         </h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          Consumers of this resource across all tenants, grouped by namespace
-          and owning application (derived from pod labels).
+          Tenant workloads requesting this resource, grouped by namespace and
+          owning application (derived from pod labels). System and control-plane
+          usage is excluded, so the total is the tenant portion of the
+          cluster-wide figure.
         </p>
       </div>
 
@@ -113,7 +121,7 @@ export function ClusterUsageResourcePage() {
       ) : error ? (
         <Section>
           <div className="px-2 py-4 text-sm text-red-700">
-            Failed to load pods: {error.message}
+            Failed to load cluster usage: {error.message}
           </div>
         </Section>
       ) : rows.length === 0 ? (
@@ -151,7 +159,7 @@ export function ClusterUsageResourcePage() {
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50 font-medium">
                 <td className="px-3 py-2 text-slate-700" colSpan={2}>
-                  Total · {rows.length} workload{rows.length === 1 ? "" : "s"}
+                  Tenant total · {rows.length} workload{rows.length === 1 ? "" : "s"}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-slate-700">
                   {formatResource(resource, totalRequested)}

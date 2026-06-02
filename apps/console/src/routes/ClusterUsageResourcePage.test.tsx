@@ -3,26 +3,47 @@ import { screen, within } from "@testing-library/react"
 import { Route, Routes } from "react-router"
 import { K8sClient, type K8sList } from "@cozystack/k8s-client"
 import { ClusterUsageResourcePage } from "./ClusterUsageResourcePage.tsx"
+import { aggregateNodeResources } from "../lib/cluster-usage/aggregate.ts"
+import { humanizeCpu } from "../lib/k8s-quantity.ts"
+import type { Node, Pod } from "../lib/cluster-usage/types.ts"
 import { TenantProvider } from "../lib/tenant-context.tsx"
 import { renderWithK8sProvider } from "../test-utils/render.tsx"
+
+interface PodOpts {
+  nodeName?: string | null
+  phase?: string
+  limits?: Record<string, string>[]
+}
 
 function pod(
   namespace: string,
   name: string,
   labels: Record<string, string>,
   requests: Record<string, string>[],
+  opts: PodOpts = {},
 ) {
+  const { nodeName = "node-1", phase = "Running", limits } = opts
   return {
     apiVersion: "v1",
     kind: "Pod",
     metadata: { name, namespace, labels },
     spec: {
+      ...(nodeName ? { nodeName } : {}),
       containers: requests.map((r, i) => ({
         name: `c${i}`,
-        resources: { requests: r },
+        resources: { requests: r, ...(limits?.[i] ? { limits: limits[i] } : {}) },
       })),
     },
-    status: { phase: "Running" },
+    status: { phase },
+  }
+}
+
+function node(name: string) {
+  return {
+    apiVersion: "v1",
+    kind: "Node",
+    metadata: { name },
+    status: { capacity: {}, allocatable: {} },
   }
 }
 
@@ -36,8 +57,13 @@ function appDef(kind: string, plural: string) {
 }
 
 const GPU = "nvidia.com/gpu"
+const DEFAULT_NODES = [node("node-1")]
 
-function makeClient(pods: unknown[], appDefs: unknown[] = []): K8sClient {
+function makeClient(
+  pods: unknown[],
+  appDefs: unknown[] = [],
+  nodes: unknown[] = DEFAULT_NODES,
+): K8sClient {
   const client = new K8sClient()
   vi.spyOn(client, "list").mockImplementation(async (_g, _v, plural) => {
     const items =
@@ -45,7 +71,9 @@ function makeClient(pods: unknown[], appDefs: unknown[] = []): K8sClient {
         ? appDefs
         : plural === "tenantnamespaces"
           ? []
-          : pods
+          : plural === "nodes"
+            ? nodes
+            : pods
     return {
       apiVersion: "v1",
       kind: `${plural}List`,
@@ -172,5 +200,44 @@ describe("ClusterUsageResourcePage", () => {
     const client = makeClient([])
     renderResource(client, GPU)
     expect(await screen.findByRole("heading", { name: GPU })).toBeInTheDocument()
+  })
+
+  it("counts requested like the aggregate: requests only, scheduled non-terminal pods", async () => {
+    const pods = [
+      pod("tenant-foo", "alpha-0", { "app.kubernetes.io/instance": "alpha" }, [{ cpu: "500m" }]),
+      pod("tenant-foo", "beta-0", { "app.kubernetes.io/instance": "beta" }, [{ cpu: "250m" }]),
+      // limits-only → excluded (the aggregate counts requests, never limits)
+      pod("tenant-foo", "gamma-0", { "app.kubernetes.io/instance": "gamma" }, [{}], {
+        limits: [{ cpu: "1" }],
+      }),
+      // terminal → excluded
+      pod("tenant-foo", "delta-0", { "app.kubernetes.io/instance": "delta" }, [{ cpu: "1" }], {
+        phase: "Succeeded",
+      }),
+      // unscheduled → excluded
+      pod("tenant-foo", "epsilon-0", { "app.kubernetes.io/instance": "epsilon" }, [{ cpu: "1" }], {
+        nodeName: null,
+      }),
+      // scheduled to an unknown node → excluded
+      pod("tenant-foo", "zeta-0", { "app.kubernetes.io/instance": "zeta" }, [{ cpu: "1" }], {
+        nodeName: "ghost",
+      }),
+    ]
+    const nodes = [node("node-1")]
+    renderResource(makeClient(pods, [], nodes), "cpu")
+
+    // The displayed total reconciles with aggregateNodeResources over the same
+    // input (all pods are tenant-scoped here, so the subset equals the whole).
+    const expected = aggregateNodeResources(nodes as Node[], pods as Pod[], undefined).standard.cpu
+      .requested
+    const totalRow = (await screen.findByText(/tenant total/i)).closest("tr") as HTMLElement
+    const totalCells = totalRow.querySelectorAll("td")
+    expect(totalCells[totalCells.length - 1].textContent).toBe(humanizeCpu(expected))
+
+    expect(screen.getByText("alpha")).toBeInTheDocument()
+    expect(screen.getByText("beta")).toBeInTheDocument()
+    for (const excluded of ["gamma", "delta", "epsilon", "zeta"]) {
+      expect(screen.queryByText(excluded)).toBeNull()
+    }
   })
 })
