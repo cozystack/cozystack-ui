@@ -11,16 +11,16 @@ import { BackupClassCreatePage } from "./BackupClassCreatePage.tsx"
 import { BackupClassDetailPage } from "./BackupClassDetailPage.tsx"
 import { BackupClassEditPage } from "./BackupClassEditPage.tsx"
 import { BackupClassAdminGuard } from "./BackupClassAdminGuard.tsx"
+import { CapacityAdminGuard } from "./CapacityAdminGuard.tsx"
 
 /**
- * Admin portal: cluster-wide operator views moved out of the tenant-facing
- * Console — Cluster Usage and the Backup Classes management added in
- * cozystack-ui#21. Mounted at /admin/* and gated by useAdminAccess (a user
- * reaches the portal if they can use at least one area). While the access
- * review is in flight we show a spinner, and a fully-denied review renders a
- * 403 notice instead of leaking any admin screen. Each area additionally
- * guards itself (the Cluster Usage page on nodes/list, the Backup Classes
- * routes via BackupClassAdminGuard on backupclasses/update).
+ * Admin portal at /admin/*, hosting two cluster-wide operator areas with
+ * independent permissions: Capacity (nodes/list) and Backup Classes
+ * (backupclasses/update). useAdminAccess lets a user in if they hold either,
+ * so the portal-level gate alone would let a backup-only operator reach a
+ * Capacity URL — hence each area is wrapped in its own layout guard that closes
+ * the direct-URL hole the sidebar already hides. While the review is in flight
+ * we show a spinner; a user with neither area gets a 403 notice.
  */
 export function AdminPage() {
   const { allowed, isLoading, canClusterUsage } = useAdminAccess()
@@ -60,11 +60,13 @@ export function AdminPage() {
           />
         }
       />
-      <Route path="capacity/cluster" element={<ClusterUsagePage />} />
-      <Route path="capacity/cluster/r/*" element={<ClusterUsageResourcePage />} />
-      <Route path="capacity/cluster/sc/*" element={<StorageClassUsagePage />} />
-      <Route path="capacity/storage" element={<StoragePage />} />
-      <Route path="capacity/nodes" element={<NodesPage />} />
+      <Route element={<CapacityAdminGuard />}>
+        <Route path="capacity/cluster" element={<ClusterUsagePage />} />
+        <Route path="capacity/cluster/r/*" element={<ClusterUsageResourcePage />} />
+        <Route path="capacity/cluster/sc/*" element={<StorageClassUsagePage />} />
+        <Route path="capacity/storage" element={<StoragePage />} />
+        <Route path="capacity/nodes" element={<NodesPage />} />
+      </Route>
       <Route element={<BackupClassAdminGuard />}>
         <Route path="backups/backupclasses" element={<BackupClassListPage />} />
         <Route path="backups/backupclasses/create" element={<BackupClassCreatePage />} />

@@ -16,8 +16,8 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import type { SidebarSection } from "@cozystack/ui"
-import { useSelfSubjectAccessReview } from "@cozystack/k8s-client"
 import { useBackupClassAdminAccess } from "../hooks/useBackupClassAdminAccess.ts"
+import { useClusterUsageAccess } from "../hooks/useClusterUsageAccess.ts"
 import { useApplicationDefinitions, groupByCategory } from "../lib/app-definitions.ts"
 import { humanizeKind } from "../lib/humanize.ts"
 import {
@@ -139,15 +139,12 @@ export function useAdminAccess(): {
   canClusterUsage: boolean
   canBackupClasses: boolean
 } {
-  const nodesReview = useSelfSubjectAccessReview({
-    resourceAttributes: { resource: "nodes", verb: "list" },
-  })
+  const clusterUsage = useClusterUsageAccess()
   const backupClasses = useBackupClassAdminAccess()
-  const canClusterUsage =
-    !nodesReview.isLoading && !nodesReview.error && nodesReview.allowed
+  const canClusterUsage = clusterUsage.allowed
   const canBackupClasses = backupClasses.allowed
   return {
-    isLoading: nodesReview.isLoading || backupClasses.isLoading,
+    isLoading: clusterUsage.isLoading || backupClasses.isLoading,
     allowed: canClusterUsage || canBackupClasses,
     canClusterUsage,
     canBackupClasses,
@@ -160,10 +157,9 @@ export function useCanSeeAdmin(): boolean {
 }
 
 /**
- * Admin sidebar: cluster-wide operator views moved out of the tenant-facing
- * Console — Cluster Usage and Backup Classes (the cluster-administration
- * backups added in cozystack-ui#21). Each entry is gated by its own
- * permission so the sidebar never shows an area the user cannot open.
+ * Admin sidebar: the cluster-wide operator areas (Capacity and Backup Classes).
+ * Each entry is gated by its own permission so the sidebar never shows an area
+ * the user cannot open.
  */
 export function useAdminSidebarSections(): SidebarSection[] {
   const { canClusterUsage, canBackupClasses } = useAdminAccess()

@@ -66,4 +66,27 @@ describe("AdminPage routing & access gate", () => {
       await screen.findByText(/you do not have permission to access the admin portal/i),
     ).toBeInTheDocument()
   })
+
+  it("guards capacity routes for a backup-only operator hitting a capacity URL", async () => {
+    // Passes the portal-level gate via backupclasses/update, but the capacity
+    // area must still be closed without nodes/list.
+    renderWithK8sProvider(<AdminPage />, {
+      client: makeClient({ nodes: false, backupclasses: true }),
+      initialRoute: "/capacity/cluster",
+    })
+    expect(
+      await screen.findByText(/you do not have permission to view cluster capacity/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Cluster")).not.toBeInTheDocument()
+  })
+
+  it("guards backup-class routes for a capacity-only operator hitting a backups URL", async () => {
+    renderWithK8sProvider(<AdminPage />, {
+      client: makeClient({ nodes: true, backupclasses: false }),
+      initialRoute: "/backups/backupclasses",
+    })
+    expect(
+      await screen.findByText(/you do not have permission to manage backup classes/i),
+    ).toBeInTheDocument()
+  })
 })
