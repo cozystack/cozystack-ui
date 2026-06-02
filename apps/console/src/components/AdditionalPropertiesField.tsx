@@ -3,14 +3,23 @@ import type { FieldProps, RJSFSchema, TemplatesType } from "@rjsf/utils"
 import Form from "@rjsf/core"
 import validator from "@rjsf/validator-ajv8"
 import { customTemplates, customWidgets } from "./rjsf-templates.tsx"
+import { addDynamicOptionWidgets } from "../lib/dynamic-options.ts"
 
 export function AdditionalPropertiesField(props: FieldProps) {
   const { schema, formData, onChange, readonly, disabled, name, required } = props
   const [newKey, setNewKey] = useState("")
 
   // Get the schema for items from additionalProperties
-  const itemSchema = (schema.additionalProperties as RJSFSchema) || {}
+  const itemSchema = useMemo(
+    () => (schema.additionalProperties as RJSFSchema) || {},
+    [schema.additionalProperties],
+  )
   const keys = Object.keys(formData || {})
+
+  // The nested <Form> renders its own subtree, so it needs its own uiSchema to
+  // bind x-cozystack-options fields (e.g. nodeGroups.*.instanceType) to the
+  // DynamicOptionsWidget — the parent SchemaForm's uiSchema does not reach here.
+  const itemUiSchema = useMemo(() => addDynamicOptionWidgets(itemSchema), [itemSchema])
 
   // Create templates without submit button for nested forms
   const templatesWithoutSubmit = useMemo<Partial<TemplatesType>>(() => {
@@ -79,6 +88,7 @@ export function AdditionalPropertiesField(props: FieldProps) {
               <Form
                 tagName="div"
                 schema={itemSchema}
+                uiSchema={itemUiSchema}
                 formData={formData[key]}
                 validator={validator}
                 templates={templatesWithoutSubmit}

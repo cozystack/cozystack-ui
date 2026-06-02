@@ -22,13 +22,11 @@ export function BackupRestoreJobCreatePage() {
     "restorejobs.backups.cozystack.io"
   )
 
-  // Get Backups
-  const { data: backupsData } = useK8sList<any>({
-    apiGroup: "backups.cozystack.io",
-    apiVersion: "v1alpha1",
-    plural: "backups",
-    namespace: tenantNamespace ?? "",
-  }, { enabled: !!tenantNamespace })
+  // backupRef.name and targetApplicationRef.kind are dynamic dropdowns driven by
+  // the CRD's x-cozystack-options keyword (backup / appkind sources), rendered
+  // by DynamicOptionsWidget. Only targetApplicationRef.name stays on the
+  // client-side enumMap below, because it depends on the chosen kind — a context
+  // the Option contract cannot express.
 
   // Get instances for selected target kind.
   // Strict undefined check so an explicit empty string from the user means
@@ -65,28 +63,15 @@ export function BackupRestoreJobCreatePage() {
       console.error("Failed to parse RestoreJob schema:", e)
       return null
     }
-    const backups = backupsData?.items.map((b: any) => b.metadata.name) ?? []
-    // ApplicationDefinitions live under apps.cozystack.io exclusively, so the
-    // Kind dropdown is populated only when the selected apiGroup matches.
-    // For any other apiGroup the user is on their own (no enum hint), which
-    // matches the free-text fallback behavior of plain CRD fields.
-    const kinds: string[] = selectedApiGroup === "apps.cozystack.io"
-      ? appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
-      : []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
     const enumMap: Record<string, string[]> = {}
 
-    // Add enum values for dropdowns
-    if (backups.length > 0) {
-      enumMap["backupRef.name"] = backups
-    }
-    if (kinds.length > 0) {
-      enumMap["targetApplicationRef.kind"] = kinds
-    }
-    // Add instances enum only after kind is selected and apiGroup matches
-    // (ApplicationDefinitions cover apps.cozystack.io only — for any other
-    // apiGroup the user is on free-text fallback).
+    // targetApplicationRef.name depends on the selected kind, so it cannot be
+    // served by the Option contract — keep it on the client-side enumMap. Only
+    // fill it when the cozystack apiGroup matches (ApplicationDefinitions cover
+    // apps.cozystack.io only — for any other apiGroup the name field has no enum
+    // and stays free-text). The kind itself is always an appkind dropdown.
     if (selectedApiGroup === "apps.cozystack.io" && selectedKind && instances.length > 0) {
       enumMap["targetApplicationRef.name"] = instances
     }
@@ -100,9 +85,9 @@ export function BackupRestoreJobCreatePage() {
     }
 
     // The CRD ships backupRef.name with `default: ""` (k8s LocalObjectReference
-    // convention). Combined with an enum injected here, RJSF's SelectWidget
-    // can lose the user's selection on re-render — strip the default so the
-    // widget starts empty and the chosen value is the single source of truth.
+    // convention). Strip it so the DynamicOptionsWidget starts from a clean
+    // empty value and the chosen value is the single source of truth, rather
+    // than RJSF re-applying the empty default on re-render.
     if (enriched.properties?.backupRef?.properties?.name?.default !== undefined) {
       delete enriched.properties.backupRef.properties.name.default
     }
@@ -120,7 +105,7 @@ export function BackupRestoreJobCreatePage() {
     }
 
     return JSON.stringify(enriched)
-  }, [baseSchema, backupsData, appDefs, instancesData, selectedKind, selectedApiGroup])
+  }, [baseSchema, instancesData, selectedKind, selectedApiGroup])
 
   const handleSubmit = async () => {
     if (!tenantNamespace) {

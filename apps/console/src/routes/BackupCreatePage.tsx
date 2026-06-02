@@ -47,15 +47,15 @@ export function BackupCreatePage() {
     if (!baseSchema) return null
 
     const base = JSON.parse(baseSchema)
-    const kinds: string[] = appDefs?.items.map(d => d.spec?.application.kind).filter((k): k is string => Boolean(k)) ?? []
     const instances = instancesData?.items.map((inst: any) => inst.metadata.name) ?? []
 
     const enumMap: Record<string, string[]> = {}
 
-    // Add enum values for dropdowns
-    if (kinds.length > 0) {
-      enumMap["applicationRef.kind"] = kinds
-    }
+    // applicationRef.kind is a dynamic dropdown driven by the CRD's
+    // x-cozystack-options keyword (appkind source), rendered by
+    // DynamicOptionsWidget. applicationRef.name stays on the client-side enumMap
+    // because it depends on the chosen kind — a context the Option contract
+    // cannot express.
     if (selectedKind && instances.length > 0) {
       enumMap["applicationRef.name"] = instances
     }
@@ -72,7 +72,7 @@ export function BackupCreatePage() {
     }
 
     return JSON.stringify(enriched)
-  }, [baseSchema, appDefs, instancesData, selectedKind])
+  }, [baseSchema, instancesData, selectedKind])
 
   const handleSubmit = async () => {
     if (!name.trim()) {
