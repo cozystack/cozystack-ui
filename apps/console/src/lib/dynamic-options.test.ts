@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import type { RJSFSchema } from "@rjsf/utils"
+import type { RJSFSchema, UiSchema } from "@rjsf/utils"
 import { addDynamicOptionWidgets } from "./dynamic-options.ts"
 
 describe("addDynamicOptionWidgets", () => {
@@ -150,6 +150,33 @@ describe("addDynamicOptionWidgets", () => {
     const ui = addDynamicOptionWidgets(schema)
 
     expect(ui.source).toBeUndefined()
+  })
+
+  it("does not mutate the input uiSchema (returns fresh objects at every level)", () => {
+    const schema: RJSFSchema = {
+      type: "object",
+      properties: {
+        applicationRef: {
+          type: "object",
+          properties: {
+            kind: {
+              type: "string",
+              "x-cozystack-options": { source: "appkind" },
+            } as RJSFSchema,
+          },
+        },
+      },
+    }
+    const input: UiSchema = { applicationRef: { kind: { "ui:title": "Kind" } } }
+    const snapshot = JSON.parse(JSON.stringify(input))
+
+    const out = addDynamicOptionWidgets(schema, input)
+
+    // The input object graph is left byte-identical.
+    expect(input).toEqual(snapshot)
+    // The result and every touched sub-object are new references.
+    expect(out).not.toBe(input)
+    expect(out.applicationRef).not.toBe(input.applicationRef)
   })
 
   it("preserves an existing uiSchema while adding widgets", () => {
