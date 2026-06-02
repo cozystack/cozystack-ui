@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { describe, it, expect, vi } from "vitest"
 import { screen, fireEvent, waitFor } from "@testing-library/react"
 import type { WidgetProps } from "@rjsf/utils"
@@ -153,6 +154,33 @@ describe("DynamicOptionsWidget", () => {
     const select = screen.getByRole("combobox") as HTMLSelectElement
     expect(select.value).toBe("custom-x")
     expect(screen.getByRole("option", { name: /custom-x/ })).toBeInTheDocument()
+  })
+
+  it("lets the user clear an optional field that has a server default (no snap-back)", async () => {
+    // The auto-default must fire only once; clearing must stick rather than the
+    // effect immediately re-applying the default. Needs a stateful host so the
+    // cleared value actually flows back and could (wrongly) re-trigger the effect.
+    function Host() {
+      const [value, setValue] = useState<string | undefined>(undefined)
+      return (
+        <DynamicOptionsWidget
+          {...makeProps({ value, onChange: setValue as (v: unknown) => void })}
+        />
+      )
+    }
+    renderWithK8sProvider(<Host />, {
+      client: clientWith(
+        list(option("storageclass", [{ value: "fast" }, { value: "standard", default: true }])),
+      ),
+    })
+
+    const select = (await screen.findByRole("combobox")) as HTMLSelectElement
+    await waitFor(() => expect(select.value).toBe("standard"))
+
+    fireEvent.change(select, { target: { value: "" } })
+    await waitFor(() => expect(select.value).toBe(""))
+    // The default must not re-apply after a deliberate clear.
+    expect(select.value).toBe("")
   })
 
   it("emits undefined (not an empty string) when an optional field is cleared", async () => {
