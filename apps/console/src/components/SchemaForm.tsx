@@ -104,6 +104,19 @@ function addAdditionalPropertiesWidgets(schema: RJSFSchema, uiSchema: UiSchema =
 }
 
 /**
+ * Minimal structural view of a JSON-schema node used by the walk below.
+ * RJSFSchema is intersected with an `any` index signature, so reading fields
+ * straight off it yields `any`; routing through this interface keeps the walk
+ * typed without an `as any` cast.
+ */
+interface SchemaNode {
+  type?: string | string[]
+  properties?: Record<string, unknown>
+  additionalProperties?: unknown
+  items?: unknown
+}
+
+/**
  * Resolve the uiSchema fragment for one schema node: bind the custom field to
  * an additionalProperties map, recurse into nested objects, or recurse into
  * array `items`. Returns the (possibly unchanged) ui fragment.
@@ -112,30 +125,30 @@ function bindAdditionalProperties(
   fieldSchema: RJSFSchema,
   uiNode: UiSchema | undefined,
 ): UiSchema | undefined {
-  const node = fieldSchema as any
+  const node: SchemaNode = fieldSchema
 
   const isAdditionalPropertiesMap =
     node.type === "object" &&
     (!node.properties || Object.keys(node.properties).length === 0) &&
     typeof node.additionalProperties === "object" &&
-    node.additionalProperties !== null &&
-    node.additionalProperties !== true
+    node.additionalProperties !== null
 
   if (isAdditionalPropertiesMap) {
     return { ...uiNode, "ui:field": "AdditionalPropertiesField" }
   }
 
   if (node.properties) {
-    return addAdditionalPropertiesWidgets(fieldSchema, uiNode as UiSchema)
+    return addAdditionalPropertiesWidgets(fieldSchema, uiNode)
   }
 
+  const items = node.items
   if (
     node.type === "array" &&
-    node.items &&
-    typeof node.items === "object" &&
-    !Array.isArray(node.items)
+    items &&
+    typeof items === "object" &&
+    !Array.isArray(items)
   ) {
-    const itemsUi = bindAdditionalProperties(node.items as RJSFSchema, (uiNode as any)?.items)
+    const itemsUi = bindAdditionalProperties(items as RJSFSchema, uiNode?.items)
     if (itemsUi !== undefined) {
       return { ...uiNode, items: itemsUi }
     }
