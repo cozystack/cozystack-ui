@@ -5,17 +5,19 @@ import {
   Database,
   Gauge,
   Globe,
+  HardDrive,
   Info,
   LayoutGrid,
   Layers,
   Network,
+  Server,
   ToyBrick,
   Users,
   type LucideIcon,
 } from "lucide-react"
 import type { SidebarSection } from "@cozystack/ui"
-import { useSelfSubjectAccessReview } from "@cozystack/k8s-client"
 import { useBackupClassAdminAccess } from "../hooks/useBackupClassAdminAccess.ts"
+import { useClusterUsageAccess } from "../hooks/useClusterUsageAccess.ts"
 import { useApplicationDefinitions, groupByCategory } from "../lib/app-definitions.ts"
 import { humanizeKind } from "../lib/humanize.ts"
 import {
@@ -72,20 +74,6 @@ export function useMarketplaceSidebarSections(): SidebarSection[] {
 export function useConsoleSidebarSections(): SidebarSection[] {
   const { data } = useApplicationDefinitions()
   const grouped = useMemo(() => groupByCategory(data), [data])
-  // Permission gate for the Cluster Usage entry: only operators with
-  // cluster-wide nodes/list see the menu item. Loading and error states
-  // resolve as "not allowed" so the entry never flickers in then out
-  // for users who can't see it.
-  const clusterUsageReview = useSelfSubjectAccessReview({
-    resourceAttributes: { resource: "nodes", verb: "list" },
-  })
-  const canSeeClusterUsage =
-    !clusterUsageReview.isLoading &&
-    !clusterUsageReview.error &&
-    clusterUsageReview.allowed
-  // Backup Classes is admin-only: tenants have cluster-wide read on
-  // backupclasses, so the entry is gated on write (update), not list.
-  const { allowed: canManageBackupClasses } = useBackupClassAdminAccess()
 
   return useMemo<SidebarSection[]>(() => {
     const sorted = [...grouped]
@@ -126,12 +114,6 @@ export function useConsoleSidebarSections(): SidebarSection[] {
     const administrationSection: SidebarSection = {
       title: "Administration",
       items: [
-        ...(canSeeClusterUsage
-          ? [{ label: "Cluster Usage", to: "/console/cluster-usage", icon: Gauge }]
-          : []),
-        ...(canManageBackupClasses
-          ? [{ label: "Backups", to: "/console/backups/backupclasses", icon: Archive }]
-          : []),
         { label: "Info", to: "/console/info", icon: Info },
         { label: "Modules", to: "/console/modules", icon: ToyBrick },
         { label: "External IPs", to: "/console/external-ips", icon: Globe },
@@ -140,5 +122,67 @@ export function useConsoleSidebarSections(): SidebarSection[] {
     }
 
     return [...categorySections, backupsSection, administrationSection]
-  }, [grouped, canSeeClusterUsage, canManageBackupClasses])
+  }, [grouped])
+}
+
+/**
+ * Access check for the Admin portal. The portal hosts two cluster-wide
+ * operator areas with independent permissions: Cluster Usage (proxied by
+ * `nodes/list`) and Backup Classes (`backupclasses/update`, via
+ * {@link useBackupClassAdminAccess}). A user sees the portal if they can use
+ * at least one. `isLoading` lets route guards wait instead of redirecting
+ * mid-flight; the per-area booleans gate the individual sidebar entries.
+ */
+export function useAdminAccess(): {
+  allowed: boolean
+  isLoading: boolean
+  canClusterUsage: boolean
+  canBackupClasses: boolean
+} {
+  const clusterUsage = useClusterUsageAccess()
+  const backupClasses = useBackupClassAdminAccess()
+  const canClusterUsage = clusterUsage.allowed
+  const canBackupClasses = backupClasses.allowed
+  return {
+    isLoading: clusterUsage.isLoading || backupClasses.isLoading,
+    allowed: canClusterUsage || canBackupClasses,
+    canClusterUsage,
+    canBackupClasses,
+  }
+}
+
+/** Boolean convenience wrapper around {@link useAdminAccess} for nav gating. */
+export function useCanSeeAdmin(): boolean {
+  return useAdminAccess().allowed
+}
+
+/**
+ * Admin sidebar: the cluster-wide operator areas (Capacity and Backup Classes).
+ * Each entry is gated by its own permission so the sidebar never shows an area
+ * the user cannot open.
+ */
+export function useAdminSidebarSections(): SidebarSection[] {
+  const { canClusterUsage, canBackupClasses } = useAdminAccess()
+  return useMemo<SidebarSection[]>(() => {
+    const sections: SidebarSection[] = []
+    if (canClusterUsage) {
+      sections.push({
+        title: "Capacity",
+        items: [
+          { label: "Cluster", to: "/admin/capacity/cluster", icon: Gauge },
+          { label: "Nodes", to: "/admin/capacity/nodes", icon: Server },
+          { label: "Storage", to: "/admin/capacity/storage", icon: HardDrive },
+        ],
+      })
+    }
+    if (canBackupClasses) {
+      sections.push({
+        title: "Backups",
+        items: [
+          { label: "Backup Classes", to: "/admin/backups/backupclasses", icon: Archive },
+        ],
+      })
+    }
+    return sections
+  }, [canClusterUsage, canBackupClasses])
 }

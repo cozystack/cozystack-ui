@@ -15,6 +15,21 @@ function emptyTotals(): ResourceTotals {
 }
 
 /**
+ * Whether a pod contributes to requested totals: it must be scheduled to a
+ * known node and not terminal. Terminal pods (Succeeded/Failed) still appear in
+ * API lists but no longer hold schedulable requests, and unscheduled/orphaned
+ * pods aren't attributable to cluster capacity — counting either would inflate
+ * the totals. Shared with the per-resource drill-down so its "Requested" tally
+ * reconciles with this aggregate (only requests count, never limits).
+ */
+export function podCountsTowardRequested(pod: Pod, knownNodes: Set<string>): boolean {
+  const nodeName = pod.spec?.nodeName
+  if (!nodeName || !knownNodes.has(nodeName)) return false
+  const phase = pod.status?.phase
+  return phase !== "Succeeded" && phase !== "Failed"
+}
+
+/**
  * Computes cluster-wide totals for every standard and extended resource.
  *
  * Capacity and allocatable are summed from each node's status maps.
@@ -57,12 +72,7 @@ export function aggregateNodeResources(
   }
 
   for (const pod of pods) {
-    const nodeName = pod.spec?.nodeName
-    if (!nodeName || !knownNodes.has(nodeName)) continue
-    // Terminal pods still appear in API lists but no longer hold schedulable
-    // requests; counting them would inflate the requested totals.
-    const phase = pod.status?.phase
-    if (phase === "Succeeded" || phase === "Failed") continue
+    if (!podCountsTowardRequested(pod, knownNodes)) continue
     for (const container of pod.spec?.containers ?? []) {
       const requests = container.resources?.requests
       if (!requests) continue

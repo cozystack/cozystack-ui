@@ -83,19 +83,22 @@ describe("ClusterUsagePage", () => {
     expect(screen.getByText(/loading/i)).toBeInTheDocument()
   })
 
-  it("renders both panels on a healthy cluster with metrics", async () => {
+  it("renders the aggregate resources table on a healthy cluster with metrics", async () => {
     const client = makeClient({
       nodes: nodesListFixture,
       pods: podsListFixture,
       metrics: nodeMetricsListFixture,
       groups: groupsWithMetrics,
     })
-    renderWithK8sProvider(<ClusterUsagePage />, { client })
-    expect(await screen.findByText("Cluster Usage")).toBeInTheDocument()
-    // "CPU" appears in both the aggregate card and the table column header,
-    // so assert via the aggregate-specific "Allocatable" label instead.
+    const { container } = renderWithK8sProvider(<ClusterUsagePage />, { client })
+    expect(await screen.findByText("Cluster")).toBeInTheDocument()
     expect(await screen.findAllByText(/allocatable/i)).not.toHaveLength(0)
-    expect(await screen.findByText("worker-gpu-1")).toBeInTheDocument()
+    // The per-node table moved to its own Nodes page; this page now shows
+    // only the cluster-wide resources table.
+    await waitFor(() =>
+      expect(container.querySelector('[data-resource-row="CPU"]')).not.toBeNull(),
+    )
+    expect(screen.queryByText("worker-gpu-1")).toBeNull()
   })
 
   it("renders the empty state when no nodes exist", async () => {
@@ -161,15 +164,22 @@ describe("ClusterUsagePage", () => {
     ).toBeInTheDocument()
   })
 
-  it("omits the Used line everywhere when metrics-server is not registered", async () => {
+  it("shows only em-dashes in the aggregate Used column when metrics-server is not registered", async () => {
     const client = makeClient({
       nodes: nodesListFixture,
       pods: podsListFixture,
       groups: groupsWithoutMetrics,
     })
-    renderWithK8sProvider(<ClusterUsagePage />, { client })
-    // Wait for the page to settle by waiting on an aggregate-card label.
+    const { container } = renderWithK8sProvider(<ClusterUsagePage />, { client })
+    // Wait for the page to settle by waiting on an aggregate label.
     await screen.findAllByText(/allocatable/i)
-    expect(screen.queryByText(/used/i)).toBeNull()
+    // The aggregate resources table always renders a Used column; without
+    // metrics every Used cell (last column of each resource row) is "—".
+    const rows = container.querySelectorAll("[data-resource-row]")
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      const cells = row.querySelectorAll("td")
+      expect(cells[cells.length - 1].textContent).toBe("—")
+    }
   })
 })

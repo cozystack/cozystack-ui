@@ -184,7 +184,7 @@ export function BackupClassListPage() {
               {items.length} {items.length === 1 ? "item" : "items"}
             </p>
           </div>
-          <Link to="/console/backups/backupclasses/create">
+          <Link to="/admin/backups/backupclasses/create">
             <Button variant="primary" size="sm">
               <Plus className="size-3.5" /> Create Backup Class
             </Button>
@@ -211,7 +211,7 @@ export function BackupClassListPage() {
                   >
                     <td className="px-5 py-3 text-sm font-medium">
                       <Link
-                        to={`/console/backups/backupclasses/${item.metadata.name}`}
+                        to={`/admin/backups/backupclasses/${item.metadata.name}`}
                         className="text-blue-600 hover:underline"
                       >
                         {item.metadata.name}

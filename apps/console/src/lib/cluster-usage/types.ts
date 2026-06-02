@@ -56,6 +56,18 @@ export interface PodStatus {
 
 export type Pod = K8sResource<PodSpec, PodStatus>
 
+export interface PvcSpec {
+  storageClassName?: string
+  resources?: { requests?: Record<string, string> }
+}
+
+export interface PvcStatus {
+  phase?: string
+  capacity?: Record<string, string>
+}
+
+export type Pvc = K8sResource<PvcSpec, PvcStatus>
+
 export interface NodeMetricsUsage {
   cpu: string
   memory: string

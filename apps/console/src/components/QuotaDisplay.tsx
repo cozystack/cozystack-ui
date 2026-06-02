@@ -16,7 +16,7 @@ export interface ResourceQuota extends K8sResource<ResourceQuotaSpec, ResourceQu
   kind: "ResourceQuota"
 }
 
-interface QuotaEntry {
+export interface QuotaEntry {
   label: string
   usedRaw: string
   hardRaw: string
@@ -162,7 +162,7 @@ interface GaugeCardProps {
   index: number
 }
 
-function GaugeCard({ entry, index }: GaugeCardProps) {
+export function GaugeCard({ entry, index }: GaugeCardProps) {
   const stroke = gaugeStrokeColor(entry.pct)
   const isOver = entry.usedNum > entry.hardNum
 

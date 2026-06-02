@@ -1,11 +1,12 @@
-import { describe, it, expect, vi } from "vitest"
-import { screen } from "@testing-library/react"
+import { describe, it, expect, vi, beforeAll } from "vitest"
+import { screen, waitFor } from "@testing-library/react"
 import {
   K8sClient,
   type K8sList,
   type APIGroupList,
 } from "@cozystack/k8s-client"
 import { ConsolePage } from "./ConsolePage.tsx"
+import { TenantProvider } from "../lib/tenant-context.tsx"
 import { renderWithK8sProvider } from "../test-utils/render.tsx"
 
 function makeClient(): K8sClient {
@@ -41,13 +42,32 @@ function makeClient(): K8sClient {
   return client
 }
 
-describe("ConsolePage routing", () => {
-  it("renders ClusterUsagePage at /cluster-usage", async () => {
-    const client = makeClient()
-    renderWithK8sProvider(<ConsolePage />, {
-      client,
-      initialRoute: "/cluster-usage",
+// TenantProvider reads window.localStorage on mount; provide a minimal
+// in-memory shim for the test environment when one is not present.
+beforeAll(() => {
+  if (typeof globalThis.localStorage?.getItem !== "function") {
+    const store = new Map<string, string>()
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+      clear: () => store.clear(),
     })
-    expect(await screen.findByText("Cluster Usage")).toBeInTheDocument()
+  }
+})
+
+describe("ConsolePage routing", () => {
+  it("no longer serves the Cluster Usage page under console (moved to /admin)", async () => {
+    const client = makeClient()
+    renderWithK8sProvider(
+      <TenantProvider>
+        <ConsolePage />
+      </TenantProvider>,
+      { client, initialRoute: "/cluster-usage" },
+    )
+    // "cluster-usage" now falls through to the generic :plural list route, so
+    // the Cluster Usage page's unique subtitle must not appear.
+    await waitFor(() => expect(client.list).toHaveBeenCalled())
+    expect(screen.queryByText(/Cluster-scoped capacity/i)).toBeNull()
   })
 })
