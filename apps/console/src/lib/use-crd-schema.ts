@@ -1,4 +1,5 @@
 import { useK8sGet } from "@cozystack/k8s-client"
+import { graftOptionSources } from "./crd-option-sources.ts"
 
 interface CRDVersion {
   name: string
@@ -6,7 +7,7 @@ interface CRDVersion {
   schema?: {
     openAPIV3Schema?: {
       properties?: {
-        spec?: any
+        spec?: unknown
       }
     }
   }
@@ -17,6 +18,7 @@ interface CRD {
   kind: string
   metadata: {
     name: string
+    annotations?: Record<string, string>
   }
   spec: {
     group: string
@@ -40,7 +42,11 @@ export function useCRDSchema(crdName: string) {
 
   // Use the storage version (authoritative) or fall back to the first listed version
   const version = crd?.spec?.versions?.find((v) => v.storage) ?? crd?.spec?.versions?.[0]
-  const schema = version?.schema?.openAPIV3Schema?.properties?.spec
+  const specSchema = version?.schema?.openAPIV3Schema?.properties?.spec
+
+  // Reattach the x-cozystack-options dropdown hints the apiserver strips from
+  // the CRD schema; they are carried in metadata annotations instead.
+  const schema = graftOptionSources(specSchema, crd?.metadata?.annotations)
 
   return {
     schema: schema ? JSON.stringify(schema) : null,
