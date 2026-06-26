@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **This repository has moved into the monorepo.** Cozystack's console UI is now developed in-tree at [`cozystack/cozystack` → `packages/system/dashboard/images/console`](https://github.com/cozystack/cozystack/tree/main/packages/system/dashboard/images/console). Please file issues and pull requests there. This repository is being archived and will be read-only.
+
 # cozystack-ui
 
 Cozystack Marketplace and Console UI — a pure SPA that talks directly to the
